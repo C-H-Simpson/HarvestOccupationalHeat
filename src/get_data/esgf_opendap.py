@@ -1,65 +1,42 @@
-import warnings
-import pandas as pd
-import requests
+# Adapted from https://esgf-pyclient.readthedocs.io/en/latest/notebooks/examples/download.html
+# and https://github.com/ESGF/esgf-pyclient/issues/57
+# and https://esgf-pyclient.readthedocs.io/en/latest/notebooks/demo/subset-cmip6.html
+import os
+from pyesgf.search import SearchConnection
+from pyesgf.logon import LogonManager
+from myproxy.client import MyProxyClient
+from OpenSSL import SSL
 
-# Below taken from https://hub.binder.pangeo.io/user/pangeo-data-pan--cmip6-examples-ro965nih/lab
-def esgf_search(server="https://esgf-node.llnl.gov/esg-search/search",
-                files_type="OPENDAP", local_node=True, project="CMIP6",
-                verbose=False, format="application%2Fsolr%2Bjson",
-                use_csrf=False, **search):
-    client = requests.session()
-    payload = search
-    payload["project"] = project
-    payload["type"]= "File"
-    if local_node:
-        payload["distrib"] = "false"
-    if use_csrf:
-        client.get(server)
-        if 'csrftoken' in client.cookies:
-            # Django 1.6 and up
-            csrftoken = client.cookies['csrftoken']
-        else:
-            # older versions
-            csrftoken = client.cookies['csrf']
-        payload["csrfmiddlewaretoken"] = csrftoken
+MyProxyClient.SSL_METHOD = SSL.TLSv1_2_METHOD
 
-    payload["format"] = format
+openID = os.getenv("openID")
+if not openID:
+    raise ValueError("openID not set")
 
-    offset = 0
-    numFound = 10000
-    all_files = []
-    files_type = files_type.upper()
-    while offset < numFound:
-        payload["offset"] = offset
-        url_keys = []
-        for k in payload:
-            url_keys += ["{}={}".format(k, payload[k])]
-
-        url = "{}/?{}".format(server, "&".join(url_keys))
-        print(url)
-        r = client.get(url)
-        r.raise_for_status()
-        resp = r.json()["response"]
-        numFound = int(resp["numFound"])
-        resp = resp["docs"]
-        offset += len(resp)
-        for d in resp:
-            if verbose:
-                for k in d:
-                    print("{}: {}".format(k,d[k]))
-            url = d["url"]
-            for f in d["url"]:
-                sp = f.split("|")
-                if sp[-1] == files_type:
-                    all_files.append(sp[0].split(".html")[0])
-    return sorted(all_files)
+lm = LogonManager()
+lm.logon_with_openid(openID)
+lm.is_logged_on()
 
 
-example_search = {
-    'variable_id': 'tas',
-    'table_id': 'Amon',
-    'activity_id': 'CMIP',
-    'source_id': 'HadGEM3-GC31-MM',
-    'member_id': 'r1i1p1f1',
-    'experiment_id': 'historical'
-}
+def test():
+    conn = SearchConnection("https://esgf-data.dkrz.de/esg-search", distrib=True)
+    ctx = conn.new_context(
+        project="CMIP6",
+        source_id="UKESM1-0-LL",
+        experiment_id="historical",
+        variable="tas",
+        frequency="mon",
+        variant_label="r1i1p1f2",
+        data_node="esgf-data3.ceda.ac.uk",
+    )
+    print(ctx.hit_count)
+    result = ctx.search()[0]
+
+    files = result.file_context().search()
+    for file in files:
+        print(file.opendap_url)
+    return True
+
+
+if __name__ == "__main__":
+    test()
