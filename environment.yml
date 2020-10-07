@@ -1,0 +1,5 @@
+name: RiceHeat
+channels:
+  - defaults
+prefix: /home/users/champs/miniconda3/envs/RiceHeat
+
