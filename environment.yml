@@ -14,10 +14,10 @@ dependencies:
   - bokeh=2.2.1=py38_0
   - brotlipy=0.7.0=py38h7b6447c_1000
   - bzip2=1.0.8=h7b6447c_0
-  - ca-certificates=2020.6.20=hecda079_0
+  - ca-certificates=2020.7.22=0
   - cairo=1.14.12=h8948797_3
   - cartopy=0.18.0=py38hee755e7_0
-  - certifi=2020.6.20=py38h32f6830_0
+  - certifi=2020.6.20=py38_0
   - cffi=1.14.0=py38h2e261b9_0
   - cfitsio=3.470=hb7c8383_2
   - chardet=3.0.4=py38_1003
@@ -107,7 +107,7 @@ dependencies:
   - numpy-base=1.19.1=py38hfa32c7d_0
   - olefile=0.46=py_0
   - openjpeg=2.3.0=h05c96fa_1
-  - openssl=1.1.1h=h516909a_0
+  - openssl=1.1.1h=h7b6447c_0
   - owslib=0.20.0=py_0
   - packaging=20.4=py_0
   - pandas=1.1.2=py38he6710b0_0
