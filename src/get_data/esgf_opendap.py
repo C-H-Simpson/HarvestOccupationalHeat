@@ -10,11 +10,12 @@ from OpenSSL import SSL
 MyProxyClient.SSL_METHOD = SSL.TLSv1_2_METHOD
 
 openID = os.getenv("openID")
+openID_password = os.getenv("openID_password")
 if not openID:
     raise ValueError("openID not set")
 
 lm = LogonManager()
-lm.logon_with_openid(openID)
+lm.logon_with_openid(openID, password=openID_password)
 lm.is_logged_on()
 
 
@@ -36,6 +37,16 @@ def test():
     for file in files:
         print(file.opendap_url)
     return True
+
+def get_openDAP_urls(search):
+    conn = SearchConnection("https://esgf-data.dkrz.de/esg-search", distrib=True)
+    ctx = conn.new_context(**search)
+    if not ctx.hit_count:
+        raise ValueError('No data found matching search')
+
+    result = ctx.search()[0]
+    files = result.file_context().search()
+    return [file.opendap_url for file in files]
 
 
 if __name__ == "__main__":
