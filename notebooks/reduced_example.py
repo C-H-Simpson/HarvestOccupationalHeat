@@ -142,15 +142,31 @@ weights = xr.DataArray(
     dims=["HASC", "seasonid"],
     coords={"HASC": ra.HASC.values, "seasonid": [1, 2, 3]},
 )
-wbt_weighted = (
+wbt_weighted_annual = (
     ds_locations_seasons["wbt_max"].groupby("time.year").mean() * weights
 ).sum(("HASC")) / weights.sum("HASC")
 
+wbt_weighted_locationwise = (
+    ds_locations_seasons["wbt_max"].mean("time") * weights
+).sum(("seasonid")) / weights.sum("seasonid")
+
 # %%
-wbt_weighted.plot()
+wbt_weighted = wbt_weighted.compute()
+
+# %%
+wbt_weighted.plot.hist()
 plt.show()
 
+# %%
+wbt_weighted.to_dataset(name="wbt_max").plot.scatter("year", "wbt_max")
 
+# %%
+ra["result"] = wbt_weighted_locationwise.values
+ra.plot("result", legend=True)
+plt.show()
+
+# %%
+# Long term trends...
 # %%
 periods_starts = np.array(range(1850, 2016 - 20, 20))
 periods_ends = periods_starts + 20
