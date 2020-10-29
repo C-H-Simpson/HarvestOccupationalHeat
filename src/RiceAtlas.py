@@ -64,24 +64,3 @@ for HASC in non_unique_HASC:
         a += 1
         ra.loc[i, "HASC"] += f".{a}"
 
-# %%
-# Add the true area
-import pyproj
-import shapely
-import shapely.ops as ops
-from shapely.geometry.polygon import Polygon
-from functools import partial
-
-
-geom_area = [
-    ops.transform(
-        partial(
-            pyproj.transform,
-            pyproj.Proj(init="EPSG:4326"),
-            pyproj.Proj(proj="aea", lat_1=geom.bounds[1], lat_2=geom.bounds[3]),
-        ),
-        geom,
-    ).area
-    for geom in ra.geometry
-]
-ra["Area_True"] = geom_area
