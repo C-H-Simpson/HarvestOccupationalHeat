@@ -16,10 +16,10 @@ from mysettings.storage_settings import storage
 
 # %%
 # Load RiceAtlas
-ra_path = big_storage / "RiceProduction_v1.shp"
+ra_path = storage / "RiceProduction_v1.shp"
 if not ra_path.exists():
     raise FileNotFoundError(
-        "Download IRRI RiceAtlas from  https://doi.org/10.7910/DVN/JE6R2R"
+        "Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"
     )
 
 ra = gpd.read_file(ra_path)
