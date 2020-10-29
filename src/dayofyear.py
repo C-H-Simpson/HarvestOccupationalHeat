@@ -1,4 +1,5 @@
-from numba import guvectorize, int64, boolean
+from numpy import full
+from numba import guvectorize, vectorize, int64, boolean
 
 
 @vectorize([boolean(int64, int64, int64)], nopython=True)
@@ -29,6 +30,6 @@ def dayofyear_range_vec(season_start, season_end, day, result):
 def dayofyear_checker(season_start, season_end, day):
     """Check whether vector of days is in a vector of ranges.
     """
-    result = np.full((season_start.shape[0], day.shape[0]), False)
+    result = full((season_start.shape[0], day.shape[0]), False)
     dayofyear_range_vec(season_start, season_end, day, result)
     return result
