@@ -15,6 +15,7 @@
 
 import xarray as xr
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 from psychrolib import GetTWetBulbFromRelHum, SI, SetUnitSystem
 from src.dayofyear import dayofyear_checker
@@ -265,18 +266,32 @@ plt.show()
 
 # %%
 # How does this look plotted against GSAT?
-gsat_periods = year_ranges_masking(gsat_change, trend_window).mean("year")
-plt.scatter(
-    gsat_periods,
-    ds_locations_seasons_periods.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"],
+gsat_periods = (
+    year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
+)
+impact_example = (
+    ds_locations_seasons_periods.sel(seasonid=1)
+    .isel(HASC=0)["labour_sahu_444"]
+    .dropna("period")
+)
+plt.scatter(gsat_periods, impact_example, label=ra.iloc[1].SUB_REGION)
+lr = stats.linregress(gsat_periods, impact_example)
+plt.plot(
+    gsat_periods.values, gsat_periods.values * lr.slope + lr.intercept, label="Fit"
 )
 plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
+plt.legend(loc="best")
+print(lr)
 plt.show()
+print(lr)
+
+# %%
+#
 
 # TODO
-# Calculate long term trends
 # Reference for the 0.7 * WBT + 0.3 * T_a number for shade WBGT
 # Reference for the 4+4+4 weighting.
 # More explanation of RiceAtlas
 # Correction for 360 day calendar
+# Turn longer notes into markdown.
