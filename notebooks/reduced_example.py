@@ -68,6 +68,18 @@ ds = xr.open_mfdataset(
 ds
 
 # %%
+# Calculate global mean surface air temperature
+# Even if you decide to do the rest of the analysis with daily data, I think
+# there is no reason not to use monthly data for this.
+# Note that ds gets sub-setted further down
+weights = np.cos(np.deg2rad(ds.lat))
+gsat = (
+    ds["tas"].weighted(weights).mean(("lat", "lon")).resample(time="Y").mean().compute()
+)
+gsat_reference = gsat.sel(time=slice("1850", "1900")).mean("time")
+gsat_change = (gsat - gsat_reference).groupby("time.year").first()
+
+# %%
 # Temperatures are in kelvin by default - I want them in Celsius
 ds["tas"] = ds["tas"] + absolute_zero
 ds["tasmax"] = ds["tasmax"] + absolute_zero
@@ -216,22 +228,25 @@ plt.show()
 # %%
 # Long term trends...
 trend_window = 20
-year_min = ds_locations_seasons_annual.year.min().item()
-year_max = ds_locations_seasons_annual.year.max().item()
-period_starts = np.array(list(range(year_min, year_max, trend_window)))
-period_middles = period_starts + trend_window / 2
 
-year_ranges_mask = xr.DataArray(
-    [
-        (ds_locations_seasons_annual.year >= year)
-        & (ds_locations_seasons_annual.year > year + 20)
-        for year in period_starts
-    ],
-    dims=("period", "year",),
-    coords={"year": ds_locations_seasons_annual.year, "period": period_middles},
-)
+
+def year_ranges_masking(data, trend_window):
+    year_min = data.year.min().item()
+    year_max = data.year.max().item()
+    period_starts = np.array(list(range(year_min, year_max, trend_window)))
+    period_middles = period_starts + trend_window / 2
+    mask = xr.DataArray(
+        [(data.year >= year) & (data.year > year + 20) for year in period_starts],
+        dims=("period", "year",),
+        coords={"year": data.year, "period": period_middles},
+    )
+    return data.where(mask)
+
+
 ds_locations_seasons_periods = (
-    ds_locations_seasons_annual.where(year_ranges_mask).mean("year").compute()
+    year_ranges_masking(ds_locations_seasons_annual, trend_window)
+    .mean("year")
+    .compute()
 )
 ds_locations_seasons_periods
 
@@ -241,16 +256,27 @@ ds_locations_seasons_periods
 for HASC, data in (
     ds_locations_seasons_periods.sel(seasonid=1).isel(HASC=[0, 5, 10]).groupby("HASC")
 ):
-    data.plot.scatter("period", "labour_sahu_444", label=HASC)
-plt.legend()
+    data.plot.scatter(
+        "period", "labour_sahu_444", label=ra.set_index("HASC").loc[HASC].SUB_REGION
+    )
+plt.legend(loc="best")
+plt.ylabel("Labour effect (%)")
 plt.show()
 
 # %%
-periods_starts = np.array(range(1850, 2016 - 20, 20))
-periods_ends = periods_starts + 20
+# How does this look plotted against GSAT?
+gsat_periods = year_ranges_masking(gsat_change, trend_window).mean("year")
+plt.scatter(
+    gsat_periods,
+    ds_locations_seasons_periods.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"],
+)
+plt.xlabel("GSAT ($\degree C$)")
+plt.ylabel("Labour effect (%)")
+plt.show()
 
 # TODO
 # Calculate long term trends
 # Reference for the 0.7 * WBT + 0.3 * T_a number for shade WBGT
 # Reference for the 4+4+4 weighting.
 # More explanation of RiceAtlas
+# Correction for 360 day calendar
