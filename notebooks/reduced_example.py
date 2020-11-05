@@ -24,13 +24,14 @@ from src.Labour import labour_sahu
 absolute_zero = -273.15
 SetUnitSystem(SI)
 
+# Silence warning about dividing by 0 or nan.
+np.seterr(divide='ignore', invalid='ignore')
+
 # %%
 # Get RiceAtlas data
 from src.RiceAtlas import ra
 
 ra
-
-# TODO, give some more explanation of what this dataset is
 
 # %%
 # Reduce scope of RiceAtlas data for speed
@@ -51,7 +52,7 @@ CMIP6_search = {
     "variable": "tas",
     "frequency": "mon",
     "variant_label": "r1i1p1f2",
-    "data_node": "esgf-data3.ceda.ac.uk",
+    #"data_node": "esgf-data3.ceda.ac.uk",
 }
 
 openDAP_urls = {}
@@ -266,32 +267,104 @@ plt.show()
 
 # %%
 # How does this look plotted against GSAT?
-gsat_periods = (
+x = (
     year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
 )
-impact_example = (
+y = (
     ds_locations_seasons_periods.sel(seasonid=1)
     .isel(HASC=0)["labour_sahu_444"]
     .dropna("period")
 )
-plt.scatter(gsat_periods, impact_example, label=ra.iloc[1].SUB_REGION)
-lr = stats.linregress(gsat_periods, impact_example)
+plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
+lr = stats.linregress(x, y)
 plt.plot(
-    gsat_periods.values, gsat_periods.values * lr.slope + lr.intercept, label="Fit"
+    x.values, x.values * lr.slope + lr.intercept, label="Fit"
 )
 plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
 print(lr)
 plt.show()
-print(lr)
 
 # %%
-#
+# What if we look at annual instead of long term values?
+x = ds_locations_seasons_annual.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"]
+y = gsat_change
+plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
+lr = stats.linregress(x, y)
+plt.plot(x, x * lr.slope + lr.intercept, label="Fit")
+plt.xlabel("GSAT ($\degree C$)")
+plt.ylabel("Labour effect (%)")
+plt.legend(loc="best")
+print(lr)
+plt.show()
+# The trend is much less clear using annual data than long term averages.
+
+# %%
+# Independently fit lines in each location
+def fit_parallel(X, Y):
+    A = np.apply_along_axis(
+        lambda y: stats.linregress(X, y),
+        -1,
+        Y,
+    )
+    return A
+def fit_parallel_wrapper(x, y, dim='time'):
+    result = xr.apply_ufunc(
+        fit_parallel,
+        x, y,
+        input_core_dims = [[dim], [dim]],
+        output_core_dims = [['linregress']],
+        dask='forbidden', output_dtypes=[float]
+    )
+    result = result.assign_coords({'linregress': ['slope', 'intercept', 'rvalue', 'pvalue', 'stderr']})
+    return result
+x = ( year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period"))
+y = ( ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period))
+ds_parallel_fit = fit_parallel_wrapper( x.load(), y.load(), 'period')
+ds_parallel_fit.sel(linregress='slope').plot.hist()
+plt.xlabel('Long-term hazard gradient (%/C)')
+plt.show()
+
+# %%
+plt.scatter(ds_parallel_fit.sel(linregress='slope'), ds_parallel_fit.sel(linregress='pvalue'),)
+plt.show()
+
+# %%
+# Plot the gradient of the worst affected season in each location
+ra['gradient_max_season'] = ds_parallel_fit.max('seasonid').sel(linregress='slope')
+ra.plot('gradient_max_season', legend=True)
+plt.show()
+
+# %%
+# Plot the proportion of the harvest in each location that is exposed to a significant gradient
+is_exposed = ds_parallel_fit.sel(linregress='pvalue') < 0.01
+weight_exposed = weights.where(is_exposed).sum('seasonid')
+ra['weight_exposed'] = weight_exposed / weights.sum('seasonid')
+ra.plot('weight_exposed', legend=True)
+plt.show()
+
+# %%
+# Calculate the proportion of the total harvest that is exposed.
+exposed_percent = (weight_exposed.sum() / weights.sum()).item()*100
+print(f"{exposed_percent:0.1f}% is exposed")
+
+# %%
+# In what months is production exposed?
+# Unfortunately not in order
+print("exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][is_exposed.values].astype(str), return_counts=True))
+print("not exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][~is_exposed.values].astype(str), return_counts=True))
+
+
+
 
 # TODO
+# Non-centroid selection of grid cells
+# Global line fit
+# Arbitrary fit
 # Reference for the 0.7 * WBT + 0.3 * T_a number for shade WBGT
 # Reference for the 4+4+4 weighting.
 # More explanation of RiceAtlas
 # Correction for 360 day calendar
 # Turn longer notes into markdown.
+# Give project more structure - copy elements from cookiecutter project
