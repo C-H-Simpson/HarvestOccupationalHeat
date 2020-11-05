@@ -12,7 +12,7 @@ https://doi.org/10.7910/DVN/JE6R2R, Harvard Dataverse, V3
 import geopandas as gpd
 from pathlib import Path
 import numpy as np
-from mysettings.storage_settings import storage
+from src.storage import storage
 
 # %%
 # Load RiceAtlas
