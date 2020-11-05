@@ -15,11 +15,18 @@ if not openID:
     raise ValueError("openID not set")
 
 lm = LogonManager()
-lm.logon_with_openid(openID, password=openID_password)
-lm.is_logged_on()
+try:
+    lm.logon_with_openid(openID, password=openID_password)
+    assert(lm.is_logged_on())
+except:
+    raise RuntimeError('Failed to log on to ESGF')
 
 
 def test():
+    print("testing ESGF search")
+    if not lm.is_logged_on():
+        raise RuntimeError('Not logged in to ESGF')
+
     conn = SearchConnection("https://esgf-data.dkrz.de/esg-search", distrib=True)
     ctx = conn.new_context(
         project="CMIP6",
@@ -28,12 +35,17 @@ def test():
         variable="tas",
         frequency="mon",
         variant_label="r1i1p1f2",
-        data_node="esgf-data3.ceda.ac.uk",
+        #data_node="esgf-data3.ceda.ac.uk",
     )
+    if not ctx.hit_count:
+        breakpoint()
+        raise RuntimeError('Search returned no results')
+    assert(ctx.hit_count)
     print(ctx.hit_count)
     result = ctx.search()[0]
 
     files = result.file_context().search()
+    assert(len(files) == 2)
     for file in files:
         print(file.opendap_url)
     return True
@@ -42,7 +54,7 @@ def get_openDAP_urls(search):
     conn = SearchConnection("https://esgf-data.dkrz.de/esg-search", distrib=True)
     ctx = conn.new_context(**search)
     if not ctx.hit_count:
-        raise ValueError('No data found matching search')
+        raise RuntimeError('Search returned no results')
 
     result = ctx.search()[0]
     files = result.file_context().search()
