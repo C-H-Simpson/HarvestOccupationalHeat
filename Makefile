@@ -61,7 +61,7 @@ install_jupyter_tools:
 #################################################################################
 
 ## Turn 'src' code into a module.
-src.egg-info: src
+src.egg-info:
 	python setup.py develop
 
 ## Generate notebooks from scripts.
