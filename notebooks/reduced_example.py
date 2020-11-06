@@ -13,10 +13,12 @@
 #     name: python3
 # ---
 
+import warnings
 import xarray as xr
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
+import regionmask
 from psychrolib import GetTWetBulbFromRelHum, SI, SetUnitSystem
 from src.dayofyear import dayofyear_checker
 from src.Labour import labour_sahu
@@ -26,6 +28,8 @@ SetUnitSystem(SI)
 
 # Silence warning about dividing by 0 or nan.
 np.seterr(divide='ignore', invalid='ignore')
+warnings.filterwarnings('once', '.*No gridpoint belongs to any region.*')
+warnings.filterwarnings('once', '.*Geometry is in a geographic CRS.*')
 
 # %%
 # Get RiceAtlas data
@@ -35,7 +39,8 @@ ra
 
 # %%
 # Reduce scope of RiceAtlas data for speed
-ra = ra[ra.COUNTRY == "Vietnam"]
+#ra = ra[ra.COUNTRY == "Vietnam"]
+ra = ra[ra.CONTINENT == "Asia"]
 
 # %%
 # Get input climate data
@@ -52,7 +57,7 @@ CMIP6_search = {
     "variable": "tas",
     "frequency": "mon",
     "variant_label": "r1i1p1f2",
-    #"data_node": "esgf-data3.ceda.ac.uk",
+    "data_node": "esgf-data3.ceda.ac.uk",
 }
 
 openDAP_urls = {}
@@ -64,6 +69,7 @@ print(openDAP_urls)
 
 # %%
 # Open using xarray as openDAP
+# If this fails, you might try changing the data_node in the query.
 ds = xr.open_mfdataset(
     openDAP_urls.values(), join="exact", combine="by_coords", use_cftime=True
 )
@@ -80,6 +86,7 @@ gsat = (
 )
 gsat_reference = gsat.sel(time=slice("1850", "1900")).mean("time")
 gsat_change = (gsat - gsat_reference).groupby("time.year").first()
+gsat_change
 
 # %%
 # Temperatures are in kelvin by default - I want them in Celsius
@@ -100,6 +107,7 @@ ds = ds.where(
     & (ds.lon <= max_lon + stepsize_lon),
     drop=True,
 )
+ds
 
 # %%
 # Add in date auxillaries
@@ -151,14 +159,15 @@ ds["labour_sahu_444"] = (
 # %%
 # Spatially subset climate gridded data according to RiceAtlas
 # RiceAtlas is in WGS 84, so I think it's fine to use the lat/lon numbers directly
+# Using centroid only. Very fast, but less accurate for large regions.
 ra_lons = xr.DataArray(
     ra.centroid.x.values, dims="HASC", coords={"HASC": ra.HASC.values}
 )
 ra_lats = xr.DataArray(
     ra.centroid.y.values, dims="HASC", coords={"HASC": ra.HASC.values}
 )
-# 'nearest' method of interpolation is fast
 ds_locations = ds.interp(lon=ra_lons, lat=ra_lats, method="nearest")
+ds_locations
 
 # %%
 # Temporally subset, according to dayofyear.
@@ -188,6 +197,7 @@ ds_locations_seasons
 # for each harvest season. That is, more than one season per year. In locations
 # without multiple harvest seasons, the result will be 0.
 ds_locations_seasons_annual = ds_locations_seasons.groupby("time.year").mean()
+ds_locations_seasons_annual
 
 # %%
 # Weight the result according to rice harvest weight.
@@ -355,9 +365,40 @@ print(f"{exposed_percent:0.1f}% is exposed")
 print("exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][is_exposed.values].astype(str), return_counts=True))
 print("not exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][~is_exposed.values].astype(str), return_counts=True))
 
+# %%
+# Global/region wide trend
+x = ( year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period"))
+y = ( ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period))
+y_weighted = (y * weights).sum(('seasonid', 'HASC')) / weights.sum()
+lr = stats.linregress(x, y_weighted)
+plt.scatter(x, y_weighted)
+plt.plot(x, x*lr.slope + lr.intercept)
+plt.xlabel('GSAT ($\degree C$)')
+plt.ylabel('Labour impact %')
+
+plt.show()
+
+"""
+# %%
+# Use regionmask
+import cartopy.crs as ccrs
+f, ax = plt.subplots(subplot_kw=dict(projection=ccrs.PlateCarree()))
+mask_3D = regionmask.mask_3D_geopandas(ra, ds.lon.values, ds.lat.values)
+mask_3D.isel(region=0).plot(
+    ax=ax, transform=ccrs.PlateCarree(), add_colorbar=False,
+)
+ax.coastlines(color="0.1");
+"""
 
 
 
+
+# %%
+
+plt.show()
+
+
+# %%
 # TODO
 # Non-centroid selection of grid cells
 # Global line fit
