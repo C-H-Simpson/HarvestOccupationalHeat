@@ -19,7 +19,7 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 import regionmask
-from psychrolib import GetTWetBulbFromRelHum, SI, SetUnitSystem
+from psychrolib import GetTWetBulbFromHumRatio, SI, SetUnitSystem
 from src.dayofyear import dayofyear_checker
 from src.Labour import labour_sahu
 
@@ -30,6 +30,8 @@ SetUnitSystem(SI)
 np.seterr(divide='ignore', invalid='ignore')
 warnings.filterwarnings('once', '.*No gridpoint belongs to any region.*')
 warnings.filterwarnings('once', '.*Geometry is in a geographic CRS.*')
+warnings.filterwarnings('once', '.*invalid value .*')
+warnings.filterwarnings('once', '.*All-NaN slice.*')
 
 # %%
 # Get RiceAtlas data
@@ -49,7 +51,7 @@ from src.get_data.esgf_opendap import get_openDAP_urls
 
 CMIP6_table = "Amon"  # could use 'day' but would be slower
 CMIP6_model = "UKESM1-0-LL"
-CMIP6_variables = ["tas", "tasmax", "hurs", "ps"]
+CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
 CMIP6_search = {
     "project": "CMIP6",
     "source_id": "UKESM1-0-LL",
@@ -123,9 +125,9 @@ for WBGT, WBT, Ta in (
 ):
     # Specify WBT calculation, using psychrolib.
     ds[WBT] = xr.apply_ufunc(
-        GetTWetBulbFromRelHum,
+        GetTWetBulbFromHumRatio,
         ds[Ta],
-        ds["hurs"] / 100,
+        ds["huss"],
         ds["ps"],
         dask="parallelized",
         output_dtypes=[float],
@@ -235,7 +237,6 @@ ds_weighted_locationwise_s1
 # Plot a map of the results.
 ra["labour_sahu_average"] = ds_weighted_locationwise_s1["labour_sahu_444"].values
 ra.plot("labour_sahu_average", legend=True)
-plt.show()
 
 # %%
 # Long term trends...
@@ -273,7 +274,6 @@ for HASC, data in (
     )
 plt.legend(loc="best")
 plt.ylabel("Labour effect (%)")
-plt.show()
 
 # %%
 # How does this look plotted against GSAT?
@@ -294,7 +294,6 @@ plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
 print(lr)
-plt.show()
 
 # %%
 # What if we look at annual instead of long term values?
@@ -307,7 +306,6 @@ plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
 print(lr)
-plt.show()
 # The trend is much less clear using annual data than long term averages.
 
 # %%
@@ -332,19 +330,24 @@ def fit_parallel_wrapper(x, y, dim='time'):
 x = ( year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period"))
 y = ( ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period))
 ds_parallel_fit = fit_parallel_wrapper( x.load(), y.load(), 'period')
-ds_parallel_fit.sel(linregress='slope').plot.hist()
-plt.xlabel('Long-term hazard gradient (%/C)')
-plt.show()
+ds_parallel_fit 
 
 # %%
+#ds_parallel_fit.sel(linregress='slope').plot.hist(bins=40)
+plt.hist( ds_parallel_fit.sel(linregress='slope').values.reshape(-1), bins=np.linspace(-1, 10, 23), weights=weights.values.reshape(-1))
+plt.xlabel('Long-term hazard gradient (%/C)')
+
+# %%
+# How do the slope and pvalue related?
 plt.scatter(ds_parallel_fit.sel(linregress='slope'), ds_parallel_fit.sel(linregress='pvalue'),)
-plt.show()
+plt.yscale('log')
+plt.xlabel('Slope (%/C)')
+plt.ylabel('pvalue')
 
 # %%
 # Plot the gradient of the worst affected season in each location
 ra['gradient_max_season'] = ds_parallel_fit.max('seasonid').sel(linregress='slope')
 ra.plot('gradient_max_season', legend=True)
-plt.show()
 
 # %%
 # Plot the proportion of the harvest in each location that is exposed to a significant gradient
@@ -352,7 +355,6 @@ is_exposed = ds_parallel_fit.sel(linregress='pvalue') < 0.01
 weight_exposed = weights.where(is_exposed).sum('seasonid')
 ra['weight_exposed'] = weight_exposed / weights.sum('seasonid')
 ra.plot('weight_exposed', legend=True)
-plt.show()
 
 # %%
 # Calculate the proportion of the total harvest that is exposed.
@@ -376,28 +378,6 @@ plt.plot(x, x*lr.slope + lr.intercept)
 plt.xlabel('GSAT ($\degree C$)')
 plt.ylabel('Labour impact %')
 
-plt.show()
-
-"""
-# %%
-# Use regionmask
-import cartopy.crs as ccrs
-f, ax = plt.subplots(subplot_kw=dict(projection=ccrs.PlateCarree()))
-mask_3D = regionmask.mask_3D_geopandas(ra, ds.lon.values, ds.lat.values)
-mask_3D.isel(region=0).plot(
-    ax=ax, transform=ccrs.PlateCarree(), add_colorbar=False,
-)
-ax.coastlines(color="0.1");
-"""
-
-
-
-
-# %%
-
-plt.show()
-
-
 # %%
 # TODO
 # Non-centroid selection of grid cells
@@ -409,3 +389,6 @@ plt.show()
 # Correction for 360 day calendar
 # Turn longer notes into markdown.
 # Give project more structure - copy elements from cookiecutter project
+
+# %%
+plt.show()
