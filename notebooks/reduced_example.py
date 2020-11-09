@@ -27,21 +27,33 @@ absolute_zero = -273.15
 SetUnitSystem(SI)
 
 # Silence warning about dividing by 0 or nan.
-np.seterr(divide='ignore', invalid='ignore')
-warnings.filterwarnings('once', '.*No gridpoint belongs to any region.*')
-warnings.filterwarnings('once', '.*Geometry is in a geographic CRS.*')
-warnings.filterwarnings('once', '.*invalid value .*')
-warnings.filterwarnings('once', '.*All-NaN slice.*')
+np.seterr(divide="ignore", invalid="ignore")
+warnings.filterwarnings("once", ".*No gridpoint belongs to any region.*")
+warnings.filterwarnings("once", ".*Geometry is in a geographic CRS.*")
+warnings.filterwarnings("once", ".*invalid value .*")
+warnings.filterwarnings("once", ".*All-NaN slice.*")
 
 # %%
-# Get RiceAtlas data
+# Get RiceAtlas data.
+# "a spatial database on the seasonal distribution of the world’s rice
+# production. It consists of data on rice planting and harvesting dates by
+# growing season and estimates of monthly production for all rice-producing
+# countries. Sources used for planting and harvesting dates include global and
+# regional databases, national publications, online reports, and expert
+# knowledge."
+# Laborte, A. G. et al. RiceAtlas, a spatial database of global rice calendars
+# and production. Sci. Data 4, 1–10 (2017).
+# Laborte, A. G. et al. RiceAtlas, a spatial database of global rice calendars
+# and production (data). (2017) doi:10.7910/DVN/JE6R2R.
+
+# See https://www.nature.com/articles/sdata201774
 from src.RiceAtlas import ra
 
 ra
 
 # %%
 # Reduce scope of RiceAtlas data for speed
-#ra = ra[ra.COUNTRY == "Vietnam"]
+# ra = ra[ra.COUNTRY == "Vietnam"]
 ra = ra[ra.CONTINENT == "Asia"]
 
 # %%
@@ -115,6 +127,14 @@ ds
 # Add in date auxillaries
 # This is because direct access via cftime dummy is slow.
 ds["dayofyear"] = ds.time.dt.dayofyear
+# If the calendar is only 360 days long (a common assumption in climate
+# models), then apply a correction to make it more like the 365 day
+# calendar.  This is not the most accurate method of correction, but it
+# is fast and easy to understand.
+if ds.dayofyear.max() == 360:
+    for day in (73, 145, 218, 291, 364):
+        ds["dayofyear"][ds.dayofyear >= day] = ds.dayofyear[ds.dayofyear >= day] + 1
+
 
 # %%
 # Calculate the heat stress indices.
@@ -135,6 +155,7 @@ for WBGT, WBT, Ta in (
 
     # Calculate WBGT, assuming the black globe temperature is approximated by the
     # air temperature. This will be approximately true in the shade.
+    # Lemke, B. & Kjellstrom, T. Calculating Workplace WBGT from Meteorological Data: A Tool for Climate Change Assessment.
     ds[WBGT] = ds[WBT] * 0.7 + ds[Ta] * 0.3
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 ds
@@ -154,6 +175,9 @@ ds
 
 # %%
 # Apply 4+4+4 weighting to labour effect, to approximate sub-daily variation.
+# Kjellstrom, T., Freyberg, C., Lemke, B., Otto, M. & Briggs, D. Estimating
+# population heat exposure and impacts on working people in conjunction with
+# climate change. Int. J. Biometeorol. 62, 291–306 (2018).
 ds["labour_sahu_444"] = (
     ds["labour_sahu_max"] + ds["labour_sahu_mean"] + ds["labour_sahu_mid"]
 ) / 3
@@ -277,9 +301,7 @@ plt.ylabel("Labour effect (%)")
 
 # %%
 # How does this look plotted against GSAT?
-x = (
-    year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
-)
+x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
 y = (
     ds_locations_seasons_periods.sel(seasonid=1)
     .isel(HASC=0)["labour_sahu_444"]
@@ -287,9 +309,7 @@ y = (
 )
 plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
 lr = stats.linregress(x, y)
-plt.plot(
-    x.values, x.values * lr.slope + lr.intercept, label="Fit"
-)
+plt.plot(x.values, x.values * lr.slope + lr.intercept, label="Fit")
 plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
@@ -311,82 +331,97 @@ print(lr)
 # %%
 # Independently fit lines in each location
 def fit_parallel(X, Y):
-    A = np.apply_along_axis(
-        lambda y: stats.linregress(X, y),
-        -1,
-        Y,
-    )
+    A = np.apply_along_axis(lambda y: stats.linregress(X, y), -1, Y,)
     return A
-def fit_parallel_wrapper(x, y, dim='time'):
+
+
+def fit_parallel_wrapper(x, y, dim="time"):
     result = xr.apply_ufunc(
         fit_parallel,
-        x, y,
-        input_core_dims = [[dim], [dim]],
-        output_core_dims = [['linregress']],
-        dask='forbidden', output_dtypes=[float]
+        x,
+        y,
+        input_core_dims=[[dim], [dim]],
+        output_core_dims=[["linregress"]],
+        dask="forbidden",
+        output_dtypes=[float],
     )
-    result = result.assign_coords({'linregress': ['slope', 'intercept', 'rvalue', 'pvalue', 'stderr']})
+    result = result.assign_coords(
+        {"linregress": ["slope", "intercept", "rvalue", "pvalue", "stderr"]}
+    )
     return result
-x = ( year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period"))
-y = ( ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period))
-ds_parallel_fit = fit_parallel_wrapper( x.load(), y.load(), 'period')
-ds_parallel_fit 
+
+
+x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
+y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
+ds_parallel_fit = fit_parallel_wrapper(x.load(), y.load(), "period")
+ds_parallel_fit
 
 # %%
-#ds_parallel_fit.sel(linregress='slope').plot.hist(bins=40)
-plt.hist( ds_parallel_fit.sel(linregress='slope').values.reshape(-1), bins=np.linspace(-1, 10, 23), weights=weights.values.reshape(-1))
-plt.xlabel('Long-term hazard gradient (%/C)')
+# ds_parallel_fit.sel(linregress='slope').plot.hist(bins=40)
+plt.hist(
+    ds_parallel_fit.sel(linregress="slope").values.reshape(-1),
+    bins=np.linspace(-1, 10, 23),
+    weights=weights.values.reshape(-1),
+)
+plt.xlabel("Long-term hazard gradient (%/C)")
 
 # %%
 # How do the slope and pvalue related?
-plt.scatter(ds_parallel_fit.sel(linregress='slope'), ds_parallel_fit.sel(linregress='pvalue'),)
-plt.yscale('log')
-plt.xlabel('Slope (%/C)')
-plt.ylabel('pvalue')
+plt.scatter(
+    ds_parallel_fit.sel(linregress="slope"), ds_parallel_fit.sel(linregress="pvalue"),
+)
+plt.yscale("log")
+plt.xlabel("Slope (%/C)")
+plt.ylabel("pvalue")
 
 # %%
 # Plot the gradient of the worst affected season in each location
-ra['gradient_max_season'] = ds_parallel_fit.max('seasonid').sel(linregress='slope')
-ra.plot('gradient_max_season', legend=True)
+ra["gradient_max_season"] = ds_parallel_fit.max("seasonid").sel(linregress="slope")
+ra.plot("gradient_max_season", legend=True)
 
 # %%
 # Plot the proportion of the harvest in each location that is exposed to a significant gradient
-is_exposed = ds_parallel_fit.sel(linregress='pvalue') < 0.01
-weight_exposed = weights.where(is_exposed).sum('seasonid')
-ra['weight_exposed'] = weight_exposed / weights.sum('seasonid')
-ra.plot('weight_exposed', legend=True)
+is_exposed = ds_parallel_fit.sel(linregress="pvalue") < 0.01
+weight_exposed = weights.where(is_exposed).sum("seasonid")
+ra["weight_exposed"] = weight_exposed / weights.sum("seasonid")
+ra.plot("weight_exposed", legend=True)
 
 # %%
 # Calculate the proportion of the total harvest that is exposed.
-exposed_percent = (weight_exposed.sum() / weights.sum()).item()*100
+exposed_percent = (weight_exposed.sum() / weights.sum()).item() * 100
 print(f"{exposed_percent:0.1f}% is exposed")
 
 # %%
 # In what months is production exposed?
 # Unfortunately not in order
-print("exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][is_exposed.values].astype(str), return_counts=True))
-print("not exposed:", np.unique(ra[['HMO_PK1', 'HMO_PK3', 'HMO_PK3']][~is_exposed.values].astype(str), return_counts=True))
+print(
+    "exposed:",
+    np.unique(
+        ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][is_exposed.values].astype(str),
+        return_counts=True,
+    ),
+)
+print(
+    "not exposed:",
+    np.unique(
+        ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][~is_exposed.values].astype(str),
+        return_counts=True,
+    ),
+)
 
 # %%
 # Global/region wide trend
-x = ( year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period"))
-y = ( ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period))
-y_weighted = (y * weights).sum(('seasonid', 'HASC')) / weights.sum()
+x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
+y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
+y_weighted = (y * weights).sum(("seasonid", "HASC")) / weights.sum()
 lr = stats.linregress(x, y_weighted)
 plt.scatter(x, y_weighted)
-plt.plot(x, x*lr.slope + lr.intercept)
-plt.xlabel('GSAT ($\degree C$)')
-plt.ylabel('Labour impact %')
+plt.plot(x, x * lr.slope + lr.intercept)
+plt.xlabel("GSAT ($\degree C$)")
+plt.ylabel("Labour impact %")
 
 # %%
 # TODO
-# Non-centroid selection of grid cells
-# Global line fit
-# Arbitrary fit
-# Reference for the 0.7 * WBT + 0.3 * T_a number for shade WBGT
-# Reference for the 4+4+4 weighting.
-# More explanation of RiceAtlas
-# Correction for 360 day calendar
 # Turn longer notes into markdown.
 # Give project more structure - copy elements from cookiecutter project
 
