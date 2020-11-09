@@ -13,6 +13,15 @@
 #     name: python3
 # ---
 
+# %% [markdown]
+# # Climate risk to rice labour
+# Some kind of abstract...
+#
+# Reading time ~ 15 minutes.
+
+# %%
+# Imports
+
 import warnings
 import xarray as xr
 import numpy as np
@@ -32,21 +41,23 @@ warnings.filterwarnings("once", ".*No gridpoint belongs to any region.*")
 warnings.filterwarnings("once", ".*Geometry is in a geographic CRS.*")
 warnings.filterwarnings("once", ".*invalid value .*")
 warnings.filterwarnings("once", ".*All-NaN slice.*")
+warnings.filterwarnings("once", ".*invalid value encountered in.*")
 
-# %%
-# Get RiceAtlas data.
-# "a spatial database on the seasonal distribution of the world’s rice
+# %% [markdown]
+# ## RiceAtlas
+#
+# "...a spatial database on the seasonal distribution of the world’s rice
 # production. It consists of data on rice planting and harvesting dates by
 # growing season and estimates of monthly production for all rice-producing
 # countries. Sources used for planting and harvesting dates include global and
 # regional databases, national publications, online reports, and expert
 # knowledge."
-# Laborte, A. G. et al. RiceAtlas, a spatial database of global rice calendars
-# and production. Sci. Data 4, 1–10 (2017).
-# Laborte, A. G. et al. RiceAtlas, a spatial database of global rice calendars
-# and production (data). (2017) doi:10.7910/DVN/JE6R2R.
+#
+# [Laborte, A. G. et al., 2017](https://www.nature.com/articles/sdata201774)
+#
+# Details of loading the RiceAtlas data are handled by [../src/RiceAtlas.py]
 
-# See https://www.nature.com/articles/sdata201774
+# %%
 from src.RiceAtlas import ra
 
 ra
@@ -56,9 +67,37 @@ ra
 # ra = ra[ra.COUNTRY == "Vietnam"]
 ra = ra[ra.CONTINENT == "Asia"]
 
+# %% [markdown]
+# What do I mean by a cropping season-location? ...
+
+# %% [markdown]
+# ## CMIP6
+# Using the latest generation of climate models, we look for trends in
+# local changes in WBGT against global climate change.
+#
+# In this example, we only use one model.
+#
+# 'tas' = mean near-surface air temperature (Kelvin)
+# 'tasmax' = max near-surface air temperature (Kelvin)
+# 'huss' = humidity ratio (dimensionless)
+# 'ps' = near-surface pressure (Pa)
+#
+# OpenDAP is a a data access protocol...
+#
+# See references re. CMIP6:
+#
+# [Eyring, V. et al. Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. Geosci. Model Dev 9, 1937–1958 (2016).](https://doi.org/10.5194/gmd-9-1937-2016)
+#
+# [O’Neill, B. C. et al. The Scenario Model Intercomparison Project (ScenarioMIP) for CMIP6. Geosci. Model Dev. 9, 3461–3482 (2016).](https://doi.org/10.5194/gmd-9-3461-2016)
+
+
 # %%
-# Get input climate data
-# Use openDAP to access directly from ESGF
+# Get input climate data.
+# Use openDAP to access directly from ESGF.
+# This requires you to supply an ESGF login.
+# See [ESGF User Guide](https://esgf.github.io/esgf-user-support/user_guide.html)
+
+# %%
 from src.get_data.esgf_opendap import get_openDAP_urls
 
 CMIP6_table = "Amon"  # could use 'day' but would be slower
@@ -82,19 +121,25 @@ for var in CMIP6_variables:
 print(openDAP_urls)
 
 # %%
-# Open using xarray as openDAP
+# Open using xarray as openDAP.
 # If this fails, you might try changing the data_node in the query.
 ds = xr.open_mfdataset(
     openDAP_urls.values(), join="exact", combine="by_coords", use_cftime=True
 )
 ds
 
-# %%
-# Calculate global mean surface air temperature
+# %% [markdown]
+# ## Climate Change
+# Calculate global mean surface air temperature, i.e. global climate change.
+#
 # Even if you decide to do the rest of the analysis with daily data, I think
 # there is no reason not to use monthly data for this.
-# Note that ds gets sub-setted further down
-weights = np.cos(np.deg2rad(ds.lat))
+#
+# Note that ds gets mutated further down in this script, so be careful
+# running these cells out of order..
+
+# %%
+weights = np.cos(np.deg2rad(ds.lat))  # To account area in spherical coordinates.
 gsat = (
     ds["tas"].weighted(weights).mean(("lat", "lon")).resample(time="Y").mean().compute()
 )
@@ -108,8 +153,8 @@ ds["tas"] = ds["tas"] + absolute_zero
 ds["tasmax"] = ds["tasmax"] + absolute_zero
 
 # %%
-# Reduce scope of climate data for speed
-# Based on the geographic limits of the RiceAtlas data we have selected
+# Reduce scope of climate data for speed.
+# Based on the geographic limits of the RiceAtlas data we have selected.
 min_lon, min_lat, max_lon, max_lat = ra.total_bounds
 stepsize_lat = ds.lat.values[1] - ds.lat.values[0]
 stepsize_lon = ds.lon.values[1] - ds.lon.values[0]
@@ -137,8 +182,37 @@ if ds.dayofyear.max() == 360:
 
 
 # %%
-# Calculate the heat stress indices.
-# This is a delayed computation
+# ## Heat stress index
+#
+# Many studies focussed on the risk of occupational heat stress use
+# wet-bulb globe temperature (WBGT), which is a heat-stress index
+# defined by ISO 7243. WBGT is intended to combine all the factors that
+# affect the human experience of heat, namely air temperature, radiant
+# temperature, humidity, and air velocity. As performing work
+# generates heat, in a high WBGT environment labour must be reduced in
+# order to maintain a safe body temperature.
+#
+# We use the [psychrolib](https://github.com/psychrometrics/psychrolib)
+# software library, which implements formulae from the ASHRAE handbook, to
+# calculate wet bulb temperature.
+#
+# We neglect irradiance by assuming that the black globe temperature is
+# approximated by the air temperature. This will be approximately true in the
+# shade.
+# WBGT in sunny weather will be underestimated, but we are focussed on long
+# term trends, and trends in irradiance are not so clear as those in air
+# temperature and humidity.
+#
+# See references:
+#
+# [Parsons, K. Heat stress standard ISO 7243 and its global application. Industrial Health vol. 44 368–379 (2006)](https://doi.org/10.2486/indhealth.44.368)
+#
+# [Parsons, K. Occupational Health Impacts of Climate Change: Current and Future ISO Standards for the Assessment of Heat Stress. Ind. Health 51, 86–100 (2013).](https://doi.org/10.2486/indhealth.2012-0165)
+#
+# [Lemke, B. & Kjellstrom, T. Calculating Workplace WBGT from Meteorological Data: A Tool for Climate Change Assessment.](https://doi.org/10.2486/indhealth.ms1352)
+
+# %%
+# This is a delayed computation, so will return quickly.
 for WBGT, WBT, Ta in (
     ("wbgt_max", "wbt_max", "tasmax"),
     ("wbgt_mean", "wbt_mean", "tas"),
@@ -155,13 +229,36 @@ for WBGT, WBT, Ta in (
 
     # Calculate WBGT, assuming the black globe temperature is approximated by the
     # air temperature. This will be approximately true in the shade.
-    # Lemke, B. & Kjellstrom, T. Calculating Workplace WBGT from Meteorological Data: A Tool for Climate Change Assessment.
     ds[WBGT] = ds[WBT] * 0.7 + ds[Ta] * 0.3
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 ds
 
+# %% [markdown]
+# ## Labour effect
+#
+# Sahu et al observed a 5% per °C WBGT decrease in the labour capacity of
+# labourers harvesting rice between 23-33 °C WBGT. Rate of collection was
+# measured in 124 workers in groups of 10-18, and WBGT was measured in-situ, at
+# a single location in India.
+# We adopt this for our labour impact metric, and assume that this is
+# representative of manual rice harvest labour.
+#
+# Other labour impact functions are included in [../src/Labour.py], so you
+# could explore how the choice of labour impact function affects the results,
+# and even define your own.
+#
+# The '4+4+4' assumption means that air temperature in the working day is
+# assumed to be close to the maxmimum for 4 hours, the mean for 4 hours, and
+# half-way between for 4 hours. This is a reasonably good approximation.
+# This assumption comes from
+# [Kjellstrom, T., Freyberg, C., Lemke, B., Otto, M. & Briggs, D. Estimating population heat exposure and impacts on working people in conjunction with climate change. Int. J. Biometeorol. 62, 291–306 (2018).](https://doi.org/10.1007/s00484-017-1407-0)
+#
+# [Sahu, S., Sett, M. & Kjellstrom, T. Heat Exposure, Cardiovascular Stress and Work Productivity in Rice Harvesters in India: Implications for a Climate Change Future. Ind. Health 51, 424–431 (2013).](https://doi.org/10.2486/indhealth.2013-0006)
+#
+# See also (Gosling, S. N., Zaherpour, J. & Ibarreta, D. PESETA III: Climate change impacts on labour productivity)[http://doi.org/10.2760/07911]
+
+
 # %%
-# Calculate the labour effect.
 # This is a delayed computation.
 for WBGT, labour in (
     ("wbgt_max", "labour_sahu_max"),
@@ -175,12 +272,12 @@ ds
 
 # %%
 # Apply 4+4+4 weighting to labour effect, to approximate sub-daily variation.
-# Kjellstrom, T., Freyberg, C., Lemke, B., Otto, M. & Briggs, D. Estimating
-# population heat exposure and impacts on working people in conjunction with
-# climate change. Int. J. Biometeorol. 62, 291–306 (2018).
 ds["labour_sahu_444"] = (
     ds["labour_sahu_max"] + ds["labour_sahu_mean"] + ds["labour_sahu_mid"]
 ) / 3
+
+# %% [markdown]
+# ## Combining the data
 
 # %%
 # Spatially subset climate gridded data according to RiceAtlas
@@ -195,11 +292,16 @@ ra_lats = xr.DataArray(
 ds_locations = ds.interp(lon=ra_lons, lat=ra_lats, method="nearest")
 ds_locations
 
-# %%
+# %% [markdown]
 # Temporally subset, according to dayofyear.
+#
 # HARV_ST1 is the start day of the first cropping season.
 # HARV_END1 is the end day of the first cropping season.
+#
 # Create an xr.DataArray containing dates which meet the criteria for each region.
+# The logic for this is imported from [../src/dayofyear.py].
+
+# %%
 doy_mask = xr.DataArray(
     np.array(
         [
@@ -217,17 +319,22 @@ doy_mask = xr.DataArray(
 ds_locations_seasons = ds_locations.where(doy_mask)
 ds_locations_seasons
 
-# %%
+# %% [markdown]
 # Downsample to yearly mean.
+#
 # Because the harvest seasons have been selected, this will give annual results
 # for each harvest season. That is, more than one season per year. In locations
 # without multiple harvest seasons, the result will be 0.
+
+# %%
 ds_locations_seasons_annual = ds_locations_seasons.groupby("time.year").mean()
 ds_locations_seasons_annual
 
-# %%
+# %% [markdown]
 # Weight the result according to rice harvest weight.
 # P_S1 means the production of the first cropping season.
+
+# %%
 weights = xr.DataArray(
     ra[["P_S1", "P_S2", "P_S3"]].values,
     dims=["HASC", "seasonid"],
@@ -235,9 +342,11 @@ weights = xr.DataArray(
 )
 weights
 
-# %%
+# %% [markdown]
 # Do a weighted average summing over locations to get a single annual value for
-# each cropping season. Invoke computation.
+# each cropping season.
+
+# %%
 ds_weighted_annual = (
     (ds_locations_seasons.groupby("time.year").mean() * weights).sum(("HASC"))
     / weights.sum("HASC")
@@ -245,29 +354,35 @@ ds_weighted_annual = (
 ds_weighted_annual
 
 # %%
-# Plot the effect against year.
+# Plot the labour effect against year.
 ds_weighted_annual.plot.scatter("year", "labour_sahu_444")
 
+# %% [markdown]
+# Do a weighted average of the labour effect, summing over time and cropping
+# season, to get a single value for each location. As we are taking the mean,
+# and some cropping seasons are less affected, this will be less extreme than
+# the most affected season.  Furthermore, this is an average across the whole
+# period, and we know there is a trend.
+
 # %%
-# Do a weighted average summing over time and cropping season, to get a single
-# value for each location. Invoke computation.
 ds_weighted_locationwise_s1 = (
     (ds_locations_seasons.mean("time")).sel(seasonid=1).compute()
 )
-
 ds_weighted_locationwise_s1
 
 # %%
-# Plot a map of the results.
 ra["labour_sahu_average"] = ds_weighted_locationwise_s1["labour_sahu_444"].values
 ra.plot("labour_sahu_average", legend=True)
 
+# %% [markdown]
+# Let's examine the long term trends in the labour effect.
+
 # %%
-# Long term trends...
-trend_window = 20
+trend_window = 20  # how many years to average over to specify 'long-term'
 
 
-def year_ranges_masking(data, trend_window):
+def year_ranges_masking(data: xr.Dataset, trend_window: int) -> xr.Dataset:
+    """Select data in a certain year range."""
     year_min = data.year.min().item()
     year_max = data.year.max().item()
     period_starts = np.array(list(range(year_min, year_max, trend_window)))
@@ -287,9 +402,12 @@ ds_locations_seasons_periods = (
 )
 ds_locations_seasons_periods
 
-# %%
+# %% [markdown]
 # Draw the time series of a couple of locations
 # I didn't choose the locations systematically, this is just for illustration.
+# We should see that some locations have a clear trend, and others don't.
+
+# %%
 for HASC, data in (
     ds_locations_seasons_periods.sel(seasonid=1).isel(HASC=[0, 5, 10]).groupby("HASC")
 ):
@@ -300,7 +418,11 @@ plt.legend(loc="best")
 plt.ylabel("Labour effect (%)")
 
 # %%
-# How does this look plotted against GSAT?
+# Is the long-term trend dominated by global changes in surface air temperature?
+# If so, we would expect there to be a correlation, so let's plot the local
+# changes against global warming, in long-term averages.
+
+# %%
 x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
 y = (
     ds_locations_seasons_periods.sel(seasonid=1)
@@ -315,8 +437,14 @@ plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
 print(lr)
 
+# %% [markdown]
+# There is a clear correlation (at least in the cropping season-location that I
+# selected for this example!).
+#
+# Does this explain all of the year-to-year variation? No, and we wouldn't expect it to.
+# When we plot annual values instead of long-term averages.
+
 # %%
-# What if we look at annual instead of long term values?
 x = ds_locations_seasons_annual.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"]
 y = gsat_change
 plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
@@ -326,16 +454,43 @@ plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour effect (%)")
 plt.legend(loc="best")
 print(lr)
-# The trend is much less clear using annual data than long term averages.
+
+# %% [markdown]
+# The trend is not just present in a few individual locations.
+# If we sum the effect across the whole region, weighting by rice production, we see a clear trend.
 
 # %%
-# Independently fit lines in each location
-def fit_parallel(X, Y):
+x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
+y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
+y_weighted = (y * weights).sum(("seasonid", "HASC")) / weights.sum()
+lr = stats.linregress(x, y_weighted)
+plt.scatter(x, y_weighted)
+plt.plot(x, x * lr.slope + lr.intercept)
+plt.xlabel("GSAT ($\degree C$)")
+plt.ylabel("Labour impact %")
+
+
+# %% [markdown]
+# The trend isn't present in all cropping location-seasons.
+# So, let's independently fit lines in each location-season, and see where the
+# trend with respect to global warming is significant.
+
+# %%
+def fit_parallel(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    """Do a linear fit along the last axis."""
     A = np.apply_along_axis(lambda y: stats.linregress(X, y), -1, Y,)
     return A
 
 
-def fit_parallel_wrapper(x, y, dim="time"):
+def fit_parallel_wrapper(
+    x: xr.DataArray, y: xr.DataArray, dim: str = "time"
+) -> xr.DataArray:
+    """Do a linear fit along an axis, independently in other dimensions.
+
+    Different outputs of the fit are arranged along a new dimension, to get
+    around the limitation that xr.apply_ufunc can only take a single variable
+    output.
+    """
     result = xr.apply_ufunc(
         fit_parallel,
         x,
@@ -357,16 +512,25 @@ ds_parallel_fit = fit_parallel_wrapper(x.load(), y.load(), "period")
 ds_parallel_fit
 
 # %%
-# ds_parallel_fit.sel(linregress='slope').plot.hist(bins=40)
 plt.hist(
     ds_parallel_fit.sel(linregress="slope").values.reshape(-1),
     bins=np.linspace(-1, 10, 23),
     weights=weights.values.reshape(-1),
 )
 plt.xlabel("Long-term hazard gradient (%/C)")
+plt.ylabel("Harvest affected (tonnes)")
+
+# %% [markdown]
+# There is a lot of variation in this 'hazard gradient'.
+#
+# Note that due to format of the data, locations which do not have multiple
+# cropping seasons will be present, and that empty parts of the table will have
+# a gradient of exactly 0.
+#
+# Many of the gradients close to 0 will be non-significant, which becomes clear
+# when we examine the p-values of the fit:
 
 # %%
-# How do the slope and pvalue related?
 plt.scatter(
     ds_parallel_fit.sel(linregress="slope"), ds_parallel_fit.sel(linregress="pvalue"),
 )
@@ -374,55 +538,84 @@ plt.yscale("log")
 plt.xlabel("Slope (%/C)")
 plt.ylabel("pvalue")
 
+
+# %% [markdown]
+# What time of year the rice is harvested is important. Harvests that occur in
+# November-January tend to be less affected.
+# Therefore, averaging over cropping seasons will sometimes obscure that
+# harvests in (e.g.) August are severely affected.
+#
+# (Note that, because the labour affect function I've used has a lower
+# threshold, cropping season-locations that start off relatively cool will have
+# a poor goodness of fit, as the trend will have an 'elbow'.)
+#
+# What is the hazard gradient in the worst affected cropping season in each
+# location?
+
 # %%
 # Plot the gradient of the worst affected season in each location
 ra["gradient_max_season"] = ds_parallel_fit.max("seasonid").sel(linregress="slope")
 ra.plot("gradient_max_season", legend=True)
 
+# %% [markdown]
+# What proportion of the harvest in each location is exposed to a significant gradient?
+# Assuming this means p<0.01.
+#
+
 # %%
-# Plot the proportion of the harvest in each location that is exposed to a significant gradient
 is_exposed = ds_parallel_fit.sel(linregress="pvalue") < 0.01
 weight_exposed = weights.where(is_exposed).sum("seasonid")
-ra["weight_exposed"] = weight_exposed / weights.sum("seasonid")
+ra["weight_exposed"] = weight_exposed / weights.sum("seasonid") * 100
 ra.plot("weight_exposed", legend=True)
 
 # %%
 # Calculate the proportion of the total harvest that is exposed.
 exposed_percent = (weight_exposed.sum() / weights.sum()).item() * 100
-print(f"{exposed_percent:0.1f}% is exposed")
+print(f"{exposed_percent:0.1f}% of the examined harvest is exposed")
 
 # %%
 # In what months is production exposed?
-# Unfortunately not in order
-print(
-    "exposed:",
-    np.unique(
-        ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][is_exposed.values].astype(str),
-        return_counts=True,
-    ),
-)
-print(
-    "not exposed:",
-    np.unique(
-        ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][~is_exposed.values].astype(str),
-        return_counts=True,
-    ),
-)
+months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
-# %%
-# Global/region wide trend
-x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
-y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
-y_weighted = (y * weights).sum(("seasonid", "HASC")) / weights.sum()
-lr = stats.linregress(x, y_weighted)
-plt.scatter(x, y_weighted)
-plt.plot(x, x * lr.slope + lr.intercept)
-plt.xlabel("GSAT ($\degree C$)")
-plt.ylabel("Labour impact %")
+exposed_months = np.unique(
+    ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][is_exposed.values].astype(str),
+    return_counts=True,
+)
+exposed_months = dict(zip(exposed_months[0], exposed_months[1]))
+non_exposed_months = np.unique(
+    ra[["HMO_PK1", "HMO_PK3", "HMO_PK3"]][~is_exposed.values].astype(str),
+    return_counts=True,
+)
+non_exposed_months = dict(zip(non_exposed_months[0], non_exposed_months[1]))
+
+
+print("Month\tExposed\tNon-exposed\t(number of cropping season-locations)")
+for month in months:
+    print(month, "\t", exposed_months[month], "\t", non_exposed_months[month])
+
 
 # %%
 # TODO
-# Turn longer notes into markdown.
+# Consistent formatting of references.
+# Some kind of abstract
+# Check axis labels
+# Give links to homepages of important libraries.
+# Regenerate notebokk
+# Check links work
+# README.md
 # Give project more structure - copy elements from cookiecutter project
 
 # %%
