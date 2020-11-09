@@ -15,9 +15,21 @@
 
 # %% [markdown]
 # # Climate risk to rice labour
-# Some kind of abstract...
+# Rice is an important part of the global food supply. It provides half
+# of calories consumed in Asia. Frequently, rice is harvested by hand.
+# This can be strenuous work, often in hot and humid conditions. Hot and
+# humid conditions are projected to become more common due to global
+# warming.
 #
-# Reading time ~ 15 minutes.
+# In this notebook, a global climate model is combined with crop
+# calendars in order to identify locations in which workers engaged in
+# rice harvest may already be affected by hot and humid weather, and the
+# extent to which this will increase with global warming.
+#
+# This is intended as an illustration of a more complete analysis, which
+# you can follow and reproduce on your own computer.
+# For this reason, we use only one climate model, and only one future
+# pathway for emissions.
 
 # %%
 # Imports
@@ -115,9 +127,8 @@ ra[["COUNTRY", "REGION", "SUB_REGION", "P_S1", "P_S2", "P_S3"]].sample(10)
 # %%
 from src.get_data.esgf_opendap import get_openDAP_urls
 
-CMIP6_table = "Amon"  # could use 'day' but would be slower
-CMIP6_model = "UKESM1-0-LL"
 CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
+CMIP6_experiments = ["historical", "ssp245"]
 CMIP6_search = {
     "project": "CMIP6",
     "source_id": "UKESM1-0-LL",
@@ -128,10 +139,12 @@ CMIP6_search = {
     "data_node": "esgf-data3.ceda.ac.uk",
 }
 
-openDAP_urls = {}
-for var in CMIP6_variables:
-    CMIP6_search["variable"] = var
-    openDAP_urls[var] = get_openDAP_urls(CMIP6_search)
+openDAP_urls =[] 
+for experiment in CMIP6_experiments:
+    CMIP6_search["experiment_id"] = experiment
+    for var in CMIP6_variables:
+        CMIP6_search["variable"] = var
+        openDAP_urls.append( get_openDAP_urls(CMIP6_search))
 
 print(openDAP_urls)
 
@@ -139,8 +152,9 @@ print(openDAP_urls)
 # Open using xarray as openDAP.
 # If this fails, you might try changing the data_node in the query.
 ds = xr.open_mfdataset(
-    openDAP_urls.values(), join="exact", combine="by_coords", use_cftime=True
+    openDAP_urls, join="exact", combine="by_coords", use_cftime=True
 )
+ds = ds.drop('height')
 ds
 
 # %% [markdown]
@@ -160,7 +174,12 @@ gsat = (
 )
 gsat_reference = gsat.sel(time=slice("1850", "1900")).mean("time")
 gsat_change = (gsat - gsat_reference).groupby("time.year").first()
-gsat_change
+
+gsat_change.attrs['long_name'] = 'Global mean surface air temperature change'
+gsat_change.attrs['short_name'] = 'GSAT change'
+gsat_change.attrs['units'] = 'C'
+
+gsat_change.plot()
 
 # %%
 # Temperatures are in kelvin by default - I want them in Celsius
@@ -648,13 +667,8 @@ for month in months:
 
 # %%
 # TODO
-# Some kind of abstract
-# Check axis labels
-# Give links to homepages of important libraries.
-# Regenerate notebokk
-# Check links work
-# README.md
 # Give project more structure - copy elements from cookiecutter project
+# Add a future projection.
 
 # %%
 plt.show()
