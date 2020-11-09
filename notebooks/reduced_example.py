@@ -27,8 +27,11 @@ import xarray as xr
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
-import regionmask
+import matplotlib as mpl
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 from psychrolib import GetTWetBulbFromHumRatio, SI, SetUnitSystem
+
 from src.dayofyear import dayofyear_checker
 from src.Labour import labour_sahu
 
@@ -63,12 +66,24 @@ from src.RiceAtlas import ra
 ra
 
 # %%
-# Reduce scope of RiceAtlas data for speed
-# ra = ra[ra.COUNTRY == "Vietnam"]
+# Reduce scope of RiceAtlas data
 ra = ra[ra.CONTINENT == "Asia"]
 
+
 # %% [markdown]
-# What do I mean by a cropping season-location? ...
+# RiceAtlas has one row per location. The locations have geometries
+# provided. Some are much larger that others.
+#
+# Within each row, there is information for multiple cropping seasons.
+# For example, the columns 'P_S1', 'P_S2', and 'P_S3', give production
+# in the first, second and third cropping season.
+# The number of columns does not change between rows, and there are
+# always entries for 3 cropping seasons. If there are not 3 croppping
+# seasons in a location, then the production will be 0 for that season.
+
+# %%
+ra[["COUNTRY", "REGION", "SUB_REGION", "P_S1", "P_S2", "P_S3"]].sample(10)
+
 
 # %% [markdown]
 # ## CMIP6
@@ -348,6 +363,7 @@ weights
 # each cropping season.
 
 # %%
+# This is a somewhat slow cell, as computation is triggered.
 ds_weighted_annual = (
     (ds_locations_seasons.groupby("time.year").mean() * weights).sum(("HASC"))
     / weights.sum("HASC")
@@ -357,28 +373,13 @@ ds_weighted_annual
 # %%
 # Plot the labour effect against year.
 ds_weighted_annual.plot.scatter("year", "labour_sahu_444")
-
-# %% [markdown]
-# Do a weighted average of the labour effect, summing over time and cropping
-# season, to get a single value for each location. As we are taking the mean,
-# and some cropping seasons are less affected, this will be less extreme than
-# the most affected season.  Furthermore, this is an average across the whole
-# period, and we know there is a trend.
-
-# %%
-ds_weighted_locationwise_s1 = (
-    (ds_locations_seasons.mean("time")).sel(seasonid=1).compute()
-)
-ds_weighted_locationwise_s1
-
-# %%
-ra["labour_sahu_average"] = ds_weighted_locationwise_s1["labour_sahu_444"].values
-ra.plot("labour_sahu_average", legend=True)
+plt.ylabel("Labour impact (%)")
 
 # %% [markdown]
 # Let's examine the long term trends in the labour effect.
 
 # %%
+# This is a somewhat slow cell, as computation is triggered.
 trend_window = 20  # how many years to average over to specify 'long-term'
 
 
@@ -417,6 +418,7 @@ for HASC, data in (
     )
 plt.legend(loc="best")
 plt.ylabel("Labour effect (%)")
+plt.ylim(bottom=0)
 
 # %%
 # Is the long-term trend dominated by global changes in surface air temperature?
@@ -446,6 +448,7 @@ print(lr)
 # When we plot annual values instead of long-term averages.
 
 # %%
+# This is a somewhat slow cell, as computation is triggered.
 x = ds_locations_seasons_annual.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"]
 y = gsat_change
 plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
@@ -556,7 +559,35 @@ plt.ylabel("pvalue")
 # %%
 # Plot the gradient of the worst affected season in each location
 ra["gradient_max_season"] = ds_parallel_fit.max("seasonid").sel(linregress="slope")
-ra.plot("gradient_max_season", legend=True)
+
+
+def map_plot(ra, variable, label, z_min, z_max, nbins):
+    bins = np.round(np.linspace(z_min, z_max, nbins), 1)
+    norm = mpl.colors.BoundaryNorm(boundaries=bins, ncolors=256)
+    fig = plt.figure(figsize=(7, 7))
+    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+    min_lon, min_lat, max_lon, max_lat = ra.total_bounds
+    ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.LAND, facecolor="gray")
+    ax.add_feature(cfeature.BORDERS, edgecolor="whitesmoke")
+    ax.add_feature(cfeature.OCEAN, color="lightgray")
+    return ra.plot(
+        column=variable,
+        legend=True,
+        ax=ax,
+        # norm=norm,
+        legend_kwds={"label": label, "orientation": "horizontal", "boundaries": bins,},
+    )
+
+
+map_plot(
+    ra,
+    "gradient_max_season",
+    "Hazard gradient in worst affected season (%/C)",
+    0,
+    10,
+    11,
+)
 
 # %% [markdown]
 # What proportion of the harvest in each location is exposed to a significant gradient?
@@ -567,7 +598,14 @@ ra.plot("gradient_max_season", legend=True)
 is_exposed = ds_parallel_fit.sel(linregress="pvalue") < 0.01
 weight_exposed = weights.where(is_exposed).sum("seasonid")
 ra["weight_exposed"] = weight_exposed / weights.sum("seasonid") * 100
-ra.plot("weight_exposed", legend=True)
+map_plot(
+    ra,
+    "weight_exposed",
+    "Proportion of production exposed to significant hazard gradient (%)",
+    0,
+    100,
+    11,
+)
 
 # %%
 # Calculate the proportion of the total harvest that is exposed.
