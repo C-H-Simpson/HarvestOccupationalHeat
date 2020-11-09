@@ -86,9 +86,9 @@ ra = ra[ra.CONTINENT == "Asia"]
 #
 # See references re. CMIP6:
 #
-# [Eyring, V. et al. Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. Geosci. Model Dev 9, 1937–1958 (2016).](https://doi.org/10.5194/gmd-9-1937-2016)
+# [Eyring, V. et al., 2016](https://doi.org/10.5194/gmd-9-1937-2016)
 #
-# [O’Neill, B. C. et al. The Scenario Model Intercomparison Project (ScenarioMIP) for CMIP6. Geosci. Model Dev. 9, 3461–3482 (2016).](https://doi.org/10.5194/gmd-9-3461-2016)
+# [O’Neill, B. C. et al., 2016](https://doi.org/10.5194/gmd-9-3461-2016)
 
 
 # %%
@@ -205,11 +205,11 @@ if ds.dayofyear.max() == 360:
 #
 # See references:
 #
-# [Parsons, K. Heat stress standard ISO 7243 and its global application. Industrial Health vol. 44 368–379 (2006)](https://doi.org/10.2486/indhealth.44.368)
+# [Parsons, K., 2006](https://doi.org/10.2486/indhealth.44.368)
 #
-# [Parsons, K. Occupational Health Impacts of Climate Change: Current and Future ISO Standards for the Assessment of Heat Stress. Ind. Health 51, 86–100 (2013).](https://doi.org/10.2486/indhealth.2012-0165)
+# [Parsons, K., 2013](https://doi.org/10.2486/indhealth.2012-0165)
 #
-# [Lemke, B. & Kjellstrom, T. Calculating Workplace WBGT from Meteorological Data: A Tool for Climate Change Assessment.](https://doi.org/10.2486/indhealth.ms1352)
+# [Lemke, B. & Kjellstrom, T.](https://doi.org/10.2486/indhealth.ms1352)
 
 # %%
 # This is a delayed computation, so will return quickly.
@@ -243,6 +243,10 @@ ds
 # We adopt this for our labour impact metric, and assume that this is
 # representative of manual rice harvest labour.
 #
+# [Sahu, S. et al., 2013](https://doi.org/10.2486/indhealth.2013-0006)
+#
+# See also (Gosling, S. N., Zaherpour, J. & Ibarreta, D.)[http://doi.org/10.2760/07911]
+#
 # Other labour impact functions are included in [../src/Labour.py], so you
 # could explore how the choice of labour impact function affects the results,
 # and even define your own.
@@ -251,11 +255,8 @@ ds
 # assumed to be close to the maxmimum for 4 hours, the mean for 4 hours, and
 # half-way between for 4 hours. This is a reasonably good approximation.
 # This assumption comes from
-# [Kjellstrom, T., Freyberg, C., Lemke, B., Otto, M. & Briggs, D. Estimating population heat exposure and impacts on working people in conjunction with climate change. Int. J. Biometeorol. 62, 291–306 (2018).](https://doi.org/10.1007/s00484-017-1407-0)
+# [Kjellstrom, T. et al., 2018](https://doi.org/10.1007/s00484-017-1407-0)
 #
-# [Sahu, S., Sett, M. & Kjellstrom, T. Heat Exposure, Cardiovascular Stress and Work Productivity in Rice Harvesters in India: Implications for a Climate Change Future. Ind. Health 51, 424–431 (2013).](https://doi.org/10.2486/indhealth.2013-0006)
-#
-# See also (Gosling, S. N., Zaherpour, J. & Ibarreta, D. PESETA III: Climate change impacts on labour productivity)[http://doi.org/10.2760/07911]
 
 
 # %%
@@ -609,7 +610,6 @@ for month in months:
 
 # %%
 # TODO
-# Consistent formatting of references.
 # Some kind of abstract
 # Check axis labels
 # Give links to homepages of important libraries.
