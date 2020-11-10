@@ -3,8 +3,7 @@ channels:
   - anaconda
   - conda-forge
 dependencies:
-  - conda==4.9.1
-  - geopandas==0.8.1
+  - geopandas
   - cartopy
   - xarray
   - numpy
@@ -20,8 +19,11 @@ dependencies:
   - jupytext
   - nbconvert
   - jupyter
-  - libnetcdf==4.6.1
+  - libnetcdf
   - hdf5
   - conda-build
   - jupytext
+  pip:    
+    - psychrolib
+    - fiona
 prefix: /home/users/champs/miniconda3/envs/RiceHeat
