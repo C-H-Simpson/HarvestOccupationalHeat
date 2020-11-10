@@ -1,27 +1,24 @@
 name: RiceHeat
 channels:
-  - anaconda
-  - conda-forge
   - defaults
 dependencies:
-  - xarray
   - geopandas
-  - scipy
   - cartopy
+  - xarray
   - numpy
-  - netcdf4
-  - cftime
-  - nc-time-axis
+  - pandas
   - matplotlib
   - dask
-  - distributed
-  - jupyter
-  - notebook
-  - descartes
-  - numba
-  - pandas
-  - python=3.8.2
+  - esgf-pyclient
+  - myproxyclient
   - pip
-  - pip:
-    - netcdf4==1.5.4
-    - psychrolib
+  - numba
+  - descartes
+  - nc-time-axis
+  - jupytext
+  - nbconvert
+  - jupyter
+  - libnetcdf
+  - hdf5
+  - conda-build
+prefix: /home/users/champs/miniconda3/envs/RiceHeat
