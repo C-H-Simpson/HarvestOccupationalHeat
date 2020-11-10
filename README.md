@@ -25,6 +25,11 @@ To run the notebook yourself:
 │   ├──dayofyear.py    <- Logic for subsetting data based on the day of the year.
 │   ├──esgf_opendap.py <- Routine for loading climate data from ESGF.
 │   ├──Labour.py       <- Formulae for assumptions about the effect of WBGT on labour.
-│   ├──RiceAtlas.py    <- Routine for loading RiceAtlas data.
-│   └──storage.py      <- Check the storage location exists.
+│   └──RiceAtlas.py    <- Routine for loading RiceAtlas data.
 ```
+
+
+TODO
+Work out how to get binder env to discover src
+Axes are reversed in "Does this explain all of the year-to-year variation? No,"
+Notebook dumps too much stuff into the console, it's messy and long, and unreadable.
