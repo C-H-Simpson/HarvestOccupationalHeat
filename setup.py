@@ -8,5 +8,5 @@ setup(
         description="Estimating the effect of occupational heat exposure on rice harvesting",
         url="https://github.com/C-H-Simpson/HarvestOccupationalHeat",
         platforms=['Unix'],
-        packages=find_packages(),
+        packages=find_packages('.'),
 )
