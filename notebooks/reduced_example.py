@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -6,7 +7,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.4.2
+#       jupytext_version: 1.6.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -70,7 +71,7 @@ warnings.filterwarnings("once", ".*invalid value encountered in.*")
 #
 # [Laborte, A. G. et al., 2017](https://www.nature.com/articles/sdata201774)
 #
-# Details of loading the RiceAtlas data are handled by [../src/RiceAtlas.py]
+# Details of loading the RiceAtlas data are handled by [../src/RiceAtlas.py](../src/RiceAtlas.py)
 
 # %%
 from src.RiceAtlas import ra
@@ -104,22 +105,18 @@ ra[["COUNTRY", "REGION", "SUB_REGION", "P_S1", "P_S2", "P_S3"]].sample(10)
 #
 # In this example, we only use one model.
 #
-# 'tas' = mean near-surface air temperature (Kelvin)
-# 'tasmax' = max near-surface air temperature (Kelvin)
-# 'huss' = humidity ratio (dimensionless)
-# 'ps' = near-surface pressure (Pa)
+# * 'tas' = mean near-surface air temperature (Kelvin)
+# * 'tasmax' = max near-surface air temperature (Kelvin)
+# * 'huss' = humidity ratio (dimensionless)
+# * 'ps' = near-surface pressure (Pa)
 #
-# OpenDAP is a a data access protocol...
 #
 # See references re. CMIP6:
-#
-# [Eyring, V. et al., 2016](https://doi.org/10.5194/gmd-9-1937-2016)
-#
-# [O’Neill, B. C. et al., 2016](https://doi.org/10.5194/gmd-9-3461-2016)
+# * [Eyring, V. et al., 2016](https://doi.org/10.5194/gmd-9-1937-2016)
+# * [O’Neill, B. C. et al., 2016](https://doi.org/10.5194/gmd-9-3461-2016)
 
 
-# %%
-# Get input climate data.
+# %% [markdown]
 # Use openDAP to access directly from ESGF.
 # This requires you to supply an ESGF login.
 # See [ESGF User Guide](https://esgf.github.io/esgf-user-support/user_guide.html)
@@ -215,7 +212,7 @@ if ds.dayofyear.max() == 360:
         ds["dayofyear"][ds.dayofyear >= day] = ds.dayofyear[ds.dayofyear >= day] + 1
 
 
-# %%
+# %% [markdown]
 # ## Heat stress index
 #
 # Many studies focussed on the risk of occupational heat stress use
@@ -238,12 +235,9 @@ if ds.dayofyear.max() == 360:
 # temperature and humidity.
 #
 # See references:
-#
-# [Parsons, K., 2006](https://doi.org/10.2486/indhealth.44.368)
-#
-# [Parsons, K., 2013](https://doi.org/10.2486/indhealth.2012-0165)
-#
-# [Lemke, B. & Kjellstrom, T.](https://doi.org/10.2486/indhealth.ms1352)
+# * [Parsons, K., 2006](https://doi.org/10.2486/indhealth.44.368)
+# * [Parsons, K., 2013](https://doi.org/10.2486/indhealth.2012-0165)
+# * [Lemke, B. & Kjellstrom, T.](https://doi.org/10.2486/indhealth.ms1352)
 
 # %%
 # This is a delayed computation, so will return quickly.
@@ -279,9 +273,9 @@ ds
 #
 # [Sahu, S. et al., 2013](https://doi.org/10.2486/indhealth.2013-0006)
 #
-# See also (Gosling, S. N., Zaherpour, J. & Ibarreta, D.)[http://doi.org/10.2760/07911]
+# See also [Gosling, S. N., Zaherpour, J. & Ibarreta, D.](http://doi.org/10.2760/07911)
 #
-# Other labour impact functions are included in [../src/Labour.py], so you
+# Other labour impact functions are included in [../src/Labour.py](../src/Labour.py), so you
 # could explore how the choice of labour impact function affects the results,
 # and even define your own.
 #
@@ -395,6 +389,8 @@ ds_weighted_annual.plot.scatter("year", "labour_sahu_444")
 plt.ylabel("Labour impact (%)")
 
 # %% [markdown]
+# There is clearly a long term trend. The data fall into two groups, as we haven't averaged over cropping seasons.
+#
 # Let's examine the long term trends in the labour effect.
 
 # %%
@@ -439,7 +435,7 @@ plt.legend(loc="best")
 plt.ylabel("Labour effect (%)")
 plt.ylim(bottom=0)
 
-# %%
+# %% [markdown]
 # Is the long-term trend dominated by global changes in surface air temperature?
 # If so, we would expect there to be a correlation, so let's plot the local
 # changes against global warming, in long-term averages.
@@ -464,7 +460,7 @@ print(lr)
 # selected for this example!).
 #
 # Does this explain all of the year-to-year variation? No, and we wouldn't expect it to.
-# When we plot annual values instead of long-term averages.
+# When we plot annual values instead of long-term averages. (This is at a single location again.)
 
 # %%
 # This is a somewhat slow cell, as computation is triggered.
