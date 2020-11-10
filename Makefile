@@ -1,4 +1,4 @@
-.PHONY: clean lint format create_environment install_jupyter_tools setup get_data
+.PHONY: clean lint format create_environment install_jupyter_tools
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -65,20 +65,6 @@ src.egg-info:
 ## Generate notebooks from scripts.
 notebooks/%.ipynb: notebooks/%.py src.egg-info
 	jupytext --to notebook --output $@ --execute $<
-
-
-$(STORAGE)/RiceProduction_v1.shp: $(STORAGE)/RiceAtlas.zip
-	cd $(STORAGE) && unzip RiceAtlas.zip
-
-$(STORAGE)/RiceAtlas.zip:
-	mkdir -p $(STORAGE)
-	wget http://gws-access.jasmin.ac.uk/public/bas_climate/files/champs/RiceAtlas/RiceAtlas.zip -P $(STORAGE)
-
-
-## Fetch prerequisite data
-get_data: $(STORAGE)/RiceProduction_v1.shp
-
-setup: create_environment src.egg-info get_data
 
 #################################################################################
 # Self Documenting Commands                                                     #

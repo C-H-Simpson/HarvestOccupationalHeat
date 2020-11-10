@@ -11,15 +11,24 @@ https://doi.org/10.7910/DVN/JE6R2R, Harvard Dataverse, V3
 """
 import geopandas as gpd
 from pathlib import Path
+import subprocess
 import numpy as np
 
 # %%
 # Load RiceAtlas
 ra_path = Path("data") / "RiceProduction_v1.shp"
 if not ra_path.exists():
-    raise FileNotFoundError(
-        f"RiceAtlas not found in {ra_path}. Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"
-    )
+    print(ra_path, "not found, attempting download")
+    # If the data doesn't exist, try downloading it
+    try:
+        Path("data").mkdir(exist_ok=True, parents=False)
+        subprocess.run(["wget http://gws-access.jasmin.ac.uk/public/bas_climate/files/champs/RiceAtlas/RiceAtlas.zip -P data/"], shell=True, check=True)
+        subprocess.run(["cd data && unzip RiceAtlas.zip"], shell=True, check=True)
+        subprocess.run(["cd data && unzip RiceProduction_v1.zip"], shell=True, check=True)
+    except:
+        raise FileNotFoundError(
+            f"RiceAtlas not found in {ra_path}. Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"
+        )
 
 ra = gpd.read_file(ra_path)
 
