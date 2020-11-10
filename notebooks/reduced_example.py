@@ -122,7 +122,7 @@ ra[["COUNTRY", "REGION", "SUB_REGION", "P_S1", "P_S2", "P_S3"]].sample(10)
 # See [ESGF User Guide](https://esgf.github.io/esgf-user-support/user_guide.html)
 
 # %%
-from src.get_data.esgf_opendap import get_openDAP_urls
+from src.esgf_opendap import get_openDAP_urls
 
 CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
 CMIP6_experiments = ["historical", "ssp245"]
