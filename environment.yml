@@ -22,4 +22,5 @@ dependencies:
   - libnetcdf
   - hdf5
   - conda-build
+  - jupytext
 prefix: /home/users/champs/miniconda3/envs/RiceHeat
