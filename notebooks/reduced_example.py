@@ -409,7 +409,6 @@ ds_locations_seasons_periods = (
     .mean("year")
     .compute()
 )
-ds_locations_seasons_periods
 
 # %% [markdown]
 # Draw the time series of a couple of locations
