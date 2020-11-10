@@ -456,8 +456,8 @@ print(lr)
 
 # %%
 # This is a somewhat slow cell, as computation is triggered.
-x = ds_locations_seasons_annual.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"]
-y = gsat_change
+x = gsat_change
+y = ds_locations_seasons_annual.sel(seasonid=1).isel(HASC=0)["labour_sahu_444"]
 plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
 lr = stats.linregress(x, y)
 plt.plot(x, x * lr.slope + lr.intercept, label="Fit")
