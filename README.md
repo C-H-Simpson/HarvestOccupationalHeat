@@ -28,8 +28,3 @@ To run the notebook yourself:
 │   └──RiceAtlas.py    <- Routine for loading RiceAtlas data.
 ```
 
-
-TODO
-Work out how to get binder env to discover src
-Axes are reversed in "Does this explain all of the year-to-year variation? No,"
-Notebook dumps too much stuff into the console, it's messy and long, and unreadable.
