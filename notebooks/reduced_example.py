@@ -197,7 +197,6 @@ ds = ds.where(
     & (ds.lon <= max_lon + stepsize_lon),
     drop=True,
 )
-ds
 
 # %%
 # Add in date auxillaries
@@ -259,7 +258,6 @@ for WBGT, WBT, Ta in (
     # air temperature. This will be approximately true in the shade.
     ds[WBGT] = ds[WBT] * 0.7 + ds[Ta] * 0.3
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
-ds
 
 # %% [markdown]
 # ## Labour effect
@@ -297,7 +295,6 @@ for WBGT, labour in (
     ds[labour] = xr.apply_ufunc(
         labour_sahu, ds[WBGT], dask="parallelized", output_dtypes=[float]
     )
-ds
 
 # %%
 # Apply 4+4+4 weighting to labour effect, to approximate sub-daily variation.
@@ -319,7 +316,6 @@ ra_lats = xr.DataArray(
     ra.centroid.y.values, dims="HASC", coords={"HASC": ra.HASC.values}
 )
 ds_locations = ds.interp(lon=ra_lons, lat=ra_lats, method="nearest")
-ds_locations
 
 # %% [markdown]
 # Temporally subset, according to dayofyear.
@@ -346,7 +342,6 @@ doy_mask = xr.DataArray(
     coords={"HASC": ra.HASC, "seasonid": [1, 2, 3], "time": ds_locations.time},
 )
 ds_locations_seasons = ds_locations.where(doy_mask)
-ds_locations_seasons
 
 # %% [markdown]
 # Downsample to yearly mean.
@@ -357,7 +352,6 @@ ds_locations_seasons
 
 # %%
 ds_locations_seasons_annual = ds_locations_seasons.groupby("time.year").mean()
-ds_locations_seasons_annual
 
 # %% [markdown]
 # Weight the result according to rice harvest weight.
@@ -369,7 +363,6 @@ weights = xr.DataArray(
     dims=["HASC", "seasonid"],
     coords={"HASC": ra.HASC.values, "seasonid": [1, 2, 3]},
 )
-weights
 
 # %% [markdown]
 # Do a weighted average summing over locations to get a single annual value for
@@ -381,7 +374,6 @@ ds_weighted_annual = (
     (ds_locations_seasons.groupby("time.year").mean() * weights).sum(("HASC"))
     / weights.sum("HASC")
 ).compute()
-ds_weighted_annual
 
 # %%
 # Plot the labour effect against year.
@@ -528,7 +520,6 @@ def fit_parallel_wrapper(
 x = year_ranges_masking(gsat_change, trend_window).mean("year").dropna("period")
 y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
 ds_parallel_fit = fit_parallel_wrapper(x.load(), y.load(), "period")
-ds_parallel_fit
 
 # %%
 plt.hist(
@@ -660,11 +651,3 @@ print("Month\tExposed\tNon-exposed\t(number of cropping season-locations)")
 for month in months:
     print(month, "\t", exposed_months[month], "\t", non_exposed_months[month])
 
-
-# %%
-# TODO
-# Give project more structure - copy elements from cookiecutter project
-# Add a future projection.
-
-# %%
-plt.show()
