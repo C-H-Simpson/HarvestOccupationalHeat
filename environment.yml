@@ -3,6 +3,7 @@ channels:
   - anaconda
   - conda-forge
 dependencies:
+  - conda==4.9.1
   - geopandas==0.8.1
   - cartopy
   - xarray
