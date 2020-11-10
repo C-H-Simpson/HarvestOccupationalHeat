@@ -1,4 +1,4 @@
-.PHONY: clean lint format create_environment install_jupyter_tools
+.PHONY: clean lint format create_environment install_jupyter_tools setup get_data
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -38,7 +38,7 @@ ifeq (True,$(HAS_CONDA))
 	@echo ">>> Detected conda, creating conda environment."
 	
 	# Create the conda environment
-	conda env create --prefix=./env -f requirements/environment.yml
+	conda env create --prefix=./env -f environment.yml
 
 	@echo ">>> New conda env created. Activate from project directory with:\nconda activate ./env"
 else
@@ -49,8 +49,6 @@ else
 	@bash -c "source `which virtualenvwrapper.sh`;mkvirtualenv $(PROJECT_NAME) --python=$(PYTHON_INTERPRETER)"
 	@echo ">>> New virtualenv created. Activate with:\nworkon $(PROJECT_NAME)"
 endif
-	@echo "You will need to set a storage location using (for example) 'conda env config vars set STORAGE=$PWD/data/'"
-	@echo "This is used because on the system (jasmin.ac.uk) this was developed on, data had to be stored in a separate volume to the code, and could not be linked to"
 
 ## Install and set up handy jupyter notebook extensions
 install_jupyter_tools:
@@ -69,7 +67,18 @@ notebooks/%.ipynb: notebooks/%.py src.egg-info
 	jupytext --to notebook --output $@ --execute $<
 
 
+$(STORAGE)/RiceProduction_v1.shp: $(STORAGE)/RiceAtlas.zip
+	cd $(STORAGE) && unzip RiceAtlas.zip
 
+$(STORAGE)/RiceAtlas.zip:
+	mkdir -p $(STORAGE)
+	wget http://gws-access.jasmin.ac.uk/public/bas_climate/files/champs/RiceAtlas/RiceAtlas.zip -P $(STORAGE)
+
+
+## Fetch prerequisite data
+get_data: $(STORAGE)/RiceProduction_v1.shp
+
+setup: create_environment src.egg-info get_data
 
 #################################################################################
 # Self Documenting Commands                                                     #
