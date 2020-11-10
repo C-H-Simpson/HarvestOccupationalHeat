@@ -19,7 +19,7 @@ from src.storage import storage
 ra_path = storage / "RiceProduction_v1.shp"
 if not ra_path.exists():
     raise FileNotFoundError(
-        "Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"
+        f"RiceAtlas not found in {ra_path}. Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"
     )
 
 ra = gpd.read_file(ra_path)
