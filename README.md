@@ -13,8 +13,8 @@ To run the notebook yourself:
 ```
 ├── Makefile
 ├── README.md
-├── environment.yml    <- Conda environment used in development.
-├── minimal_env.yml    <- Minimal conda environment to run examples.
+├── environment.yml    <- Minimal conda environment to run examples.
+├── dev_environment.yml    <- Conda environment used in development.
 ├── openID.sh          <- Script to set environment variables for ESGF openDAP access.
 │
 ├── notebooks          <- Jupyter notebooks.
