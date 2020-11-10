@@ -12,7 +12,7 @@ MyProxyClient.SSL_METHOD = SSL.TLSv1_2_METHOD
 openID = os.getenv("openID")
 openID_password = os.getenv("openID_password")
 if not openID:
-    raise ValueError("openID not set")
+    raise ValueError("openID not set. Set this with environment variables 'openID' and 'openID_password'.")
 
 lm = LogonManager()
 try:
