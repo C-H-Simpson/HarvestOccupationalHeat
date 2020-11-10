@@ -1,6 +1,7 @@
 name: RiceHeat
 channels:
-  - defaults
+  - anaconda
+  - conda-forge
 dependencies:
   - geopandas
   - cartopy
