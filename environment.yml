@@ -24,7 +24,6 @@ dependencies:
   - pip
   - pip:
     - netcdf4==1.5.4
-    - src==0.0.1
     - psychrolib
 variables:
   STORAGE: data/
