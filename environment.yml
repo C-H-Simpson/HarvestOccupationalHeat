@@ -3,7 +3,7 @@ channels:
   - anaconda
   - conda-forge
 dependencies:
-  - geopandas
+  - geopandas==0.8.1
   - cartopy
   - xarray
   - numpy
@@ -19,7 +19,7 @@ dependencies:
   - jupytext
   - nbconvert
   - jupyter
-  - libnetcdf
+  - libnetcdf==4.6.1
   - hdf5
   - conda-build
   - jupytext
