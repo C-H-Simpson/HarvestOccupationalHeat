@@ -12,11 +12,10 @@ https://doi.org/10.7910/DVN/JE6R2R, Harvard Dataverse, V3
 import geopandas as gpd
 from pathlib import Path
 import numpy as np
-from src.storage import storage
 
 # %%
 # Load RiceAtlas
-ra_path = storage / "RiceProduction_v1.shp"
+ra_path = Path("data") / "RiceProduction_v1.shp"
 if not ra_path.exists():
     raise FileNotFoundError(
         f"RiceAtlas not found in {ra_path}. Download and unzip IRRI RiceAtlas from https://doi.org/10.7910/DVN/JE6R2R"

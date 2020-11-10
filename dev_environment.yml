@@ -232,6 +232,4 @@ dependencies:
   - pip:
     - netcdf4==1.5.4
     - src==0.0.1
-variables:
-  STORAGE: /gws/nopw/j04/bas_climate/users/champs/RiceHeat_demo
 prefix: /home/users/champs/miniconda3/envs/RiceHeat
