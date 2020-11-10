@@ -1,12 +1,12 @@
 # Climate risk to rice labour
 
 ## Getting started
-The notebook has already been evaluated, so have a look [reduced_example](notebook/reduced_example.ipynb).
+The notebook has already been evaluated, so have a look [reduced_example](notebooks/reduced_example.ipynb).
 
 To run the notebook yourself:
 1. Run `make setup`
 2. Run `source openID.sh` and set your ESGF login info.
-3. Open the notebook [reduced_example](notebook/reduced_example.ipynb).
+3. Open the notebook [reduced_example](notebooks/reduced_example.ipynb).
 
 
 ## Project Organization
