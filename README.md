@@ -4,9 +4,10 @@
 The notebook has already been evaluated, so have a look [reduced_example](notebooks/reduced_example.ipynb).
 
 To run the notebook yourself:
-1. Run `make setup`
-2. Run `source openID.sh` and set your ESGF login info.
-3. Open the notebook [reduced_example](notebooks/reduced_example.ipynb).
+1. Create the environment:
+* There is a known issue with the package manager conda, that causes it to use very large memory when trying to solve an environment. If this turns out to be a problem for you, get around this by usings "full_env.yml" instead of "environment.yml".
+* `conda env create -f environment.yml --prefix $PWD/env`
+2. Open [reduced_example](notebooks/reduced_example.ipynb) and run it.
 
 
 ## Project Organization
@@ -27,4 +28,3 @@ To run the notebook yourself:
 │   ├──Labour.py       <- Formulae for assumptions about the effect of WBGT on labour.
 │   └──RiceAtlas.py    <- Routine for loading RiceAtlas data.
 ```
-
