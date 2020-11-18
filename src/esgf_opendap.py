@@ -8,20 +8,16 @@ from myproxy.client import MyProxyClient
 from OpenSSL import SSL
 
 MyProxyClient.SSL_METHOD = SSL.TLSv1_2_METHOD
+lm = LogonManager()
 
 openID = os.getenv("openID")
 openID_password = os.getenv("openID_password")
 if not openID:
-    openID = input("Enter openID:")
-    openID_password = input("Enter openID password")
-
-    #raise ValueError("openID not set. Set this with environment variables 'openID' and 'openID_password'.")
-
-lm = LogonManager()
-try:
+    lm.logon(hostname="esgf-data.dkrz.de", bootstrap=True, interactive=True)
+else:
     lm.logon_with_openid(openID, password=openID_password)
-    assert(lm.is_logged_on())
-except:
+
+if not lm.is_logged_on():
     raise RuntimeError('Failed to log on to ESGF')
 
 
