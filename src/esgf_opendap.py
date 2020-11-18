@@ -13,7 +13,8 @@ lm = LogonManager()
 openID = os.getenv("openID")
 openID_password = os.getenv("openID_password")
 if not openID:
-    lm.logon(hostname="esgf-data.dkrz.de", bootstrap=True, interactive=True)
+    openID = input("Enter openID: ")
+    lm.logon_with_openid(openID, bootstrap=True, interactive=True)
 else:
     lm.logon_with_openid(openID, password=openID_password)
 
