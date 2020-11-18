@@ -1,0 +1,28 @@
+name: RiceHeat
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - geopandas
+  - cartopy
+  - xarray
+  - numpy
+  - pandas
+  - matplotlib
+  - dask
+  - esgf-pyclient
+  - myproxyclient
+  - pip
+  - numba
+  - descartes
+  - nc-time-axis
+  - jupytext
+  - nbconvert
+  - jupyter
+  - libnetcdf
+  - hdf5
+  - conda-build
+  - jupytext
+  - pip:    
+    - psychrolib
+    - fiona
