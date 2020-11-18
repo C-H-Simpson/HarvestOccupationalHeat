@@ -23,6 +23,6 @@ dependencies:
   - hdf5
   - conda-build
   - jupytext
-  pip:    
+  - pip:    
     - psychrolib
     - fiona
