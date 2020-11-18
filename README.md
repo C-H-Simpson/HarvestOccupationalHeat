@@ -5,7 +5,7 @@ The notebook has already been evaluated, so have a look [reduced_example](notebo
 
 To run the notebook yourself:
 1. Create the environment:
-* There is a known issue with the package manager conda, that causes it to use very large memory when trying to solve an environment. If this turns out to be a problem for you, get around this by usings "full_env.yml" instead of "environment.yml".
+* There is a known issue with the package manager conda, that causes it to use very large memory when trying to solve an environment. For this reason, the default `environment.yml` has all versions specified. The 
 * `conda env create -f environment.yml --prefix $PWD/env`
 2. Open [reduced_example](notebooks/reduced_example.ipynb) and run it.
 
@@ -14,8 +14,8 @@ To run the notebook yourself:
 ```
 ├── Makefile
 ├── README.md
-├── environment.yml    <- Minimal conda environment to run examples.
-├── dev_environment.yml    <- Conda environment used in development.
+├── environment.yml    <- Fully frozen conda environment, as used in development.
+├── environment_minimal.yml <- Conda environment only specifying necessary packages, without version number.
 ├── openID.sh          <- Script to set environment variables for ESGF openDAP access.
 │
 ├── notebooks          <- Jupyter notebooks.
