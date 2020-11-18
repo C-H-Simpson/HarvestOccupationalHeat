@@ -26,4 +26,3 @@ dependencies:
   pip:    
     - psychrolib
     - fiona
-prefix: /home/users/champs/miniconda3/envs/RiceHeat
