@@ -8,13 +8,14 @@ dependencies:
   - pandas
   - pip
   - xarray>=0.16.1
+  - hdf5
+  - libnetcdf
   - pip:    
     - descartes
     - esgf-pyclient
     - fiona
     - jupyter
     - jupytext
-    - libnetcdf
     - matplotlib
     - myproxyclient
     - nbconvert
