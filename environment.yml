@@ -10,6 +10,7 @@ dependencies:
   - xarray>=0.16.1
   - hdf5
   - libnetcdf
+  - dask
   - pip:    
     - descartes
     - esgf-pyclient
@@ -22,3 +23,4 @@ dependencies:
     - nc-time-axis
     - numba
     - psychrolib>=2.5.0
+    - pydap
