@@ -12,7 +12,6 @@ dependencies:
     - descartes
     - esgf-pyclient
     - fiona
-    - hdf5
     - jupyter
     - jupytext
     - libnetcdf
