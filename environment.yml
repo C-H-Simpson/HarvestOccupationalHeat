@@ -14,7 +14,7 @@ dependencies:
   - scipy=1.5.2
   - xarray=0.16.1
   - pip:    
-    - descartes==1.6.0
+    - descartes
     - esgf-pyclient
     - fiona
     - jupyter
