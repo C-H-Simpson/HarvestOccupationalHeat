@@ -14,7 +14,7 @@ dependencies:
   - scipy=1.5.2
   - xarray=0.16.1
   - pip:    
-    - descartes=1.6.0
+    - descartes==1.6.0
     - esgf-pyclient
     - fiona
     - jupyter
@@ -23,5 +23,5 @@ dependencies:
     - myproxyclient
     - nbconvert
     - nc-time-axis
-    - psychrolib=2.5.0
+    - psychrolib==2.5.0
     - pydap
