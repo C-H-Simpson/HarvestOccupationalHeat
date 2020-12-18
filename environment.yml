@@ -3,16 +3,18 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - cartopy
-  - geopandas
-  - pandas
-  - pip
-  - xarray>=0.16.1
+  - cartopy=0.18.0
+  - dask=2.29.0
+  - geopandas=0.8.1
   - hdf5
   - libnetcdf
-  - dask
+  - numba=0.50.1
+  - pandas=1.1.2
+  - pip
+  - scipy=1.5.2
+  - xarray=0.16.1
   - pip:    
-    - descartes
+    - descartes=1.6.0
     - esgf-pyclient
     - fiona
     - jupyter
@@ -21,6 +23,5 @@ dependencies:
     - myproxyclient
     - nbconvert
     - nc-time-axis
-    - numba
-    - psychrolib>=2.5.0
+    - psychrolib=2.5.0
     - pydap
