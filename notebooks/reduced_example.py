@@ -32,7 +32,7 @@
 # For this reason, we use only one climate model, and only one future
 # pathway for emissions.
 
-# %%
+# %% jupyter={"outputs_hidden": true}
 # Use this cell if the conda environment is not already set up
 # !. ../env.sh riceheat ../environment.yml
 
