@@ -5,13 +5,13 @@ ENV_SPEC=$2
 
 function create_env {
 	echo "creating $ENV_NAME from $ENV_SPEC" 
-	conda create -n $ENV_NAME python=$python_version ipykernel -y 
+	conda env create -n $ENV_NAME --file $ENV_SPEC
 	eval "$(conda shell.bash hook)" 
+	conda install ipykernel -y
 	conda activate $ENV_NAME
 	python -m ipykernel install --user --name $ENV_NAME --display-name $ENV_NAME
 	conda env update --file $ENV_SPEC
 
-	echo "Refresh your browser, and change kernel to $ENV_NAME"
 }
 
 # Code below mostly from stackoverflow
@@ -37,7 +37,7 @@ if type conda 2>/dev/null; then
       echo -e $CYAN"activating environment ${ENV_NAME}"$NC
     else
       echo
-      echo -e $RED"(!) Please install the conda environment ${ENV_NAME}"$NC
+      echo -e $RED"(!) Will install the conda environment ${ENV_NAME}"$NC
       echo
       create_env
       return 1  # we are source'd so we cannot use exit
@@ -50,4 +50,5 @@ else
 fi
 
 conda activate ${ENV_NAME}
+echo -e $RED"Change kernel to $ENV_NAME, refresh browser if not available."
 
