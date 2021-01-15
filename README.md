@@ -14,9 +14,9 @@ To run the notebook yourself:
 ```
 ├── Makefile
 ├── README.md
-├── environment.yml    <- Fully frozen conda environment, as used in development.
-├── environment_minimal.yml <- Conda environment only specifying necessary packages, without version number.
-├── openID.sh          <- Script to set environment variables for ESGF openDAP access.
+├── environment.yml    <- Conda environment specification.
+├── env.sh             <- Conda environment setup script.
+├── openID.sh          <- Script to set environment variables for ESGF openDAP access, not necessary when running interactively.
 │
 ├── notebooks          <- Jupyter notebooks.
 │   └──reduced_example.ipynb <- Example of heat/labour analysis using climate data and crop calendars.
