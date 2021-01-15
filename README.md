@@ -5,11 +5,7 @@ The notebook has already been evaluated, so have a look [reduced_example](notebo
 
 You will need an ESGF openID in order to run this yourself.
 
-To run the notebook yourself:
-1. Create the environment:
-* There is a known issue with the package manager conda, that causes it to use very large memory when trying to solve an environment. For this reason, the default `environment.yml` has all versions specified, and contains everything that was in the environment during development. Alternatively, if this isn't a problem, `environment_minimal.yml` has just those packages that are required.
-* `conda env create -f environment.yml --prefix $PWD/env`
-2. Open [reduced_example](notebooks/reduced_example.ipynb) and run it.
+A script is provided to setup the conda environment from inside the notebook if required.
 
 
 ## Project Organization
