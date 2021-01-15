@@ -9,9 +9,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.6.0
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: riceheat
 #     language: python
-#     name: python3
+#     name: riceheat
 # ---
 
 # %% [markdown]
@@ -31,6 +31,10 @@
 # you can follow and reproduce on your own computer.
 # For this reason, we use only one climate model, and only one future
 # pathway for emissions.
+
+# %%
+# Use this cell if the conda environment is not already set up
+# !. ../env.sh riceheat ../environment.yml
 
 # %%
 # Imports
@@ -316,6 +320,7 @@ ds["labour_sahu_444"] = (
 # Spatially subset climate gridded data according to RiceAtlas
 # RiceAtlas is in WGS 84, so I think it's fine to use the lat/lon numbers directly
 # Using centroid only. Very fast, but less accurate for large regions.
+# The full analysis uses a more sophisticated method.
 ra_lons = xr.DataArray(
     ra.centroid.x.values, dims="HASC", coords={"HASC": ra.HASC.values}
 )
