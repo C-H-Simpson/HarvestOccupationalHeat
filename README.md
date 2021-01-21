@@ -20,7 +20,6 @@ A script is provided to setup the conda environment from inside the notebook if 
 ├── notebooks          <- Jupyter notebooks.
 │   └──reduced_example.ipynb <- Example of heat/labour analysis using climate data and crop calendars.
 │   └──reduced_example.py    <- Script version of above notebook, used for clean version control.
-├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
 ├── src                <- Source code for use in this project.
 │   ├──dayofyear.py    <- Logic for subsetting data based on the day of the year.
 │   ├──Labour.py       <- Formulae for assumptions about the effect of WBGT on labour.
