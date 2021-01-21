@@ -32,9 +32,9 @@
 # For this reason, we use only one climate model, and only one future
 # pathway for emissions.
 
-# %% jupyter={"outputs_hidden": true}
+# %%
 # Use this cell if the conda environment is not already set up
-# !. ../env.sh riceheat ../environment.yml
+# !. ../env.sh riceheat ../environment.yml > env_build_log.txt
 
 # %%
 # Imports
@@ -55,6 +55,7 @@ import matplotlib as mpl
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from psychrolib import GetTWetBulbFromHumRatio, SI, SetUnitSystem
+from intake import open_catalog
 
 from src.dayofyear import dayofyear_checker
 from src.Labour import labour_sahu
@@ -128,42 +129,36 @@ ra[["COUNTRY", "REGION", "SUB_REGION", "P_S1", "P_S2", "P_S3"]].sample(10)
 
 
 # %% [markdown]
-# Use openDAP to access directly from ESGF.
-# This requires you to supply an ESGF login.
-# See [ESGF User Guide](https://esgf.github.io/esgf-user-support/user_guide.html)
+# Use intake to access pangeo catalogue, get data from GCS.
 
 # %%
-from src.esgf_opendap import get_openDAP_urls
+cat = open_catalog("https://raw.githubusercontent.com/pangeo-data/pangeo-datastore/master/intake-catalogs/master.yaml")
 
+# %%
 CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
 CMIP6_experiments = ["historical", "ssp245"]
 CMIP6_search = {
-    "project": "CMIP6",
+#     "activity_id": "CMIP6",
     "source_id": "UKESM1-0-LL",
-    "experiment_id": "historical",
-    "variable": "tas",
-    "frequency": "mon",
-    "variant_label": "r1i1p1f2",
-    "data_node": "esgf-data3.ceda.ac.uk",
+    "experiment_id": CMIP6_experiments,
+    "variable_id": CMIP6_variables,
+    "table_id": "Amon",
+    "grid_label": "gn",
+    "member_id": "r1i1p1f2",
 }
 
-openDAP_urls =[] 
-for experiment in CMIP6_experiments:
-    CMIP6_search["experiment_id"] = experiment
-    for var in CMIP6_variables:
-        CMIP6_search["variable"] = var
-        openDAP_urls.append( get_openDAP_urls(CMIP6_search))
-
-print(openDAP_urls)
+cat_return = cat.climate.cmip6_gcs.search(**CMIP6_search)
+ds_dict = cat_return.to_dataset_dict(zarr_kwargs={"consolidated": True})
+ds_dict
 
 # %%
-# Open using xarray as openDAP.
-# If this fails, you might try changing the data_node in the query.
-ds = xr.open_mfdataset(
-    openDAP_urls, join="exact", combine="by_coords", use_cftime=True
-)
-ds = ds.drop('height')
-ds
+ds = xr.concat(ds_dict.values(), dim='time').drop('height').squeeze()
+
+# %%
+ds_dict.values()
+
+# %%
+ds = xr.combine_by_coords(ds_dict.values(), combine_attrs='drop').drop('height').squeeze()
 
 # %% [markdown]
 # ## Climate Change
@@ -450,12 +445,14 @@ y = (
     .isel(HASC=0)["labour_sahu_444"]
     .dropna("period")
 )
-plt.scatter(x, y, label=ra.iloc[1].SUB_REGION)
+
+fig, ax = plt.subplots()
+ax.scatter(x, y, label=ra.iloc[1].SUB_REGION)
 lr = stats.linregress(x, y)
-plt.plot(x.values, x.values * lr.slope + lr.intercept, label="Fit")
-plt.xlabel("GSAT ($\degree C$)")
-plt.ylabel("Labour effect (%)")
-plt.legend(loc="best")
+ax.plot(x, x * lr.slope + lr.intercept, label="Fit")
+ax.set_xlabel("GSAT ($\degree C$)")
+ax.set_ylabel("Labour effect (%)")
+ax.legend(loc="best")
 print(lr)
 
 # %% [markdown]
@@ -487,7 +484,7 @@ y = ds_locations_seasons_periods["labour_sahu_444"].sel(period=x.period)
 y_weighted = (y * weights).sum(("seasonid", "HASC")) / weights.sum()
 lr = stats.linregress(x, y_weighted)
 plt.scatter(x, y_weighted)
-plt.plot(x, x * lr.slope + lr.intercept)
+plt.plot(x.values, (x * lr.slope + lr.intercept).values)
 plt.xlabel("GSAT ($\degree C$)")
 plt.ylabel("Labour impact %")
 
