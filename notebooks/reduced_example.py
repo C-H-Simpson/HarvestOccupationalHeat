@@ -34,7 +34,7 @@
 
 # %%
 # Use this cell if the conda environment is not already set up
-# !. ../env.sh riceheat ../environment.yml > env_build_log.txt
+# !. ../env.sh riceheat ../environment.yml >> env_build_log.txt
 
 # %%
 # Imports

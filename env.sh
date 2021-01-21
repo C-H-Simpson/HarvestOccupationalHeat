@@ -6,11 +6,9 @@ ENV_SPEC=$2
 function create_env {
 	echo "creating $ENV_NAME from $ENV_SPEC" 
 	conda env create -n $ENV_NAME --file $ENV_SPEC
-	eval "$(conda shell.bash hook)" 
+	eval "$(conda shell.bash hook)" && conda activate $ENV_NAME
 	conda install ipykernel -y
-	conda activate $ENV_NAME
 	python -m ipykernel install --user --name $ENV_NAME --display-name $ENV_NAME
-	conda env update --file $ENV_SPEC
 
 }
 
@@ -49,6 +47,6 @@ else
     return 1  # we are source'd so we cannot use exit
 fi
 
-conda activate ${ENV_NAME}
+eval "$(conda shell.bash hook)" && conda activate $ENV_NAME
 echo -e $RED"Change kernel to $ENV_NAME, refresh browser if not available."
 
