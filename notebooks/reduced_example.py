@@ -418,14 +418,6 @@ plt.legend()
 #
 
 # %%
-# Check we get some valid output
-# TODO don't need this in the final version
-for labour_func_name in ("labour_sahu", "labour_dunne", "labour_hothaps_high"):
-    func = Labour.__dict__[labour_func_name]
-    print(func(ds.wbgt_max.isel(time=-6)).max().compute())
-
-
-# %%
 # This is a delayed computation.
 labour_ds_list = []
 for labour_func_name in ("labour_sahu", "labour_dunne", "labour_hothaps_high"):
@@ -443,6 +435,8 @@ for labour_func_name in ("labour_sahu", "labour_dunne", "labour_hothaps_high"):
                 func, ds[WBGT], dask="parallelized", output_dtypes=[float]
             ).assign_coords({"labour_func": labour_func_name, "wbgt_stat": WBGT_stat})
         )
+        # print("A", func(ds[WBGT].isel(time=-6)).max().compute()) # Just checking
+        # print("B", labour_ds_list[-1][-1].isel(time=-6).max().compute()) # Just checking
 
 ds_labourloss = (
     xr.combine_nested(
@@ -457,6 +451,7 @@ ds_labourloss = (
 )
 # Plot to check there is valid data
 ds_labourloss.labour.isel(time=-6, labour_func=1).plot.hist()
+print(ds_labourloss.labour.isel(time=-6))
 
 # %% [markdown]
 # Calculate correlations between annual GSAT and labour loss for each gridcell for each month.
@@ -504,6 +499,9 @@ ds_labourloss = ds_labourloss.compute()
 # Fit independently for each month and gridcell.
 # Note that the data array needs to contain monthly data by this point, even if
 # you started with daily or subdaily data.
+
+# I'm not seeing the results I expect from this at the moment. I think it's a problem somewhere between the WBGT and the labour functions?
+
 ds_monthly_trends = ds_labourloss.labour.groupby("time.month").apply(
     lambda x: fit_parallel_wrapper(
         gsat_change, x.groupby("time.year").mean().sel(year=gsat_change.year), "year"
@@ -612,6 +610,3 @@ da_peak_months = xr.concat(peak_months, dim="HASC")
 
 # %%
 plt.show() # TODO remove this
-
-
-# I'm not seeing the results I expect from this at the moment. I think it's a problem somewhere between the WBGT and the labour functions?
