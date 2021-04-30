@@ -24,3 +24,4 @@ dependencies:
     - nbconvert
     - nc-time-axis
     - psychrolib==2.5.0
+    - regionmask
