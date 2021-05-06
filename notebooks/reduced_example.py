@@ -378,7 +378,14 @@ for WBGT, WBT, Ta in (
         "short_name": WBGT,
     }
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
-# TODO it will be worth saving and reloading this data.
+
+# %%
+ds[["wbgt_mean", "wbgt_max", "wbgt_mid"]].to_netcdf(
+    Path("data") / "ds_wbgt.nc",
+    encoding=dict(
+        [(var, {"dtype": "float32"}) for var in ["wbgt_mean", "wbgt_max", "wbgt_mid"]]
+    ),
+)
 
 # %%
 # Check the data make sense
@@ -588,8 +595,6 @@ plt.show()
 
 # %% [markdown]
 # ## Combining the data
-# TODO make the method more like the supplementary material plots.
-# TODO make all the supplementary material-style plots.
 # TODO improve the prose, read aloud.
 
 # %%
@@ -664,15 +669,56 @@ da_weights_seasonal = xr.concat(all_weights, dim="HASC")
 da_weights_monthly = xr.concat(monthly_weights, dim="HASC")
 da_peak_months = xr.concat(peak_months, dim="HASC")
 
+# %% [markdown]
+# ## Results for example locations
+# TODO look at results in West Bengal, Punjab, Mekong River Delta.
+
+# %%
+# West Bengal
+HASC_local = ra[ra.REGION == "West Bengal"].HASC.head(1).item()
+mask_local = ds_mask.sel(HASC=HASC_local).mask
+ds["wbgt_max"].where(mask_local).mean(("lat", "lon"), keep_attrs=True).plot()
+plt.show()
+
+# %%
+ds_labourloss.sel(labour_func="labour_sahu").where(mask_local).mean(
+    ("lat", "lon"), keep_attrs=True
+).labour.plot()
+plt.show()
+
+# %%
+ds_labourloss_yearly = (
+    ds_labourloss[["labour"]]
+    .sel(labour_func="labour_sahu")
+    .where(mask_local)
+    .mean(("lat", "lon"), keep_attrs=True)
+    .groupby("time.year")
+    .mean(keep_attrs=True)
+)
+ds_labourloss_yearly["gsat_change"] = gsat_change
+ds_labourloss_yearly.plot.scatter("gsat_change", "labour")
+plt.tight_layout()
+plt.show()
+
+# %%
+sns.scatterplot(
+    data=ds_monthly_trends.sel(labour_func="labour_sahu", linregress="slope")
+    .where(mask_local)
+    .to_dataframe(),
+    x="month",
+    y="fit",
+)
+ra[ra.HASC == HASC_local]
+plt.show()
+
 # %%
 # Latitude and monthly plots
-use_seasonal_weights = True  # If False, there will be more small points
+use_seasonal_weights = True
+# If use_seasonal_weights is False, there will be more small points. RiceAtlas
+# contains peak months for each harvest, and the weight of that harvest. It
+# also provides the harvested amount for each month.
 
-# Get rid of non-significant gradients
-# ds.sel(linregress="slope")[damage_function] = ds.sel(linregress="slope")[ damage_function ].where(ds.sel(linregress="rvalue")[damage_function] > 0.5, 0)
-
-
-# average trend by HASC, by month or season
+# Average trend by HASC, by month or season
 if use_seasonal_weights:
     ds_HASC = (
         ds_monthly_trends.where(ds_mask.mask)
@@ -774,6 +820,9 @@ ax2.set_ylabel("Hazard gradient (%/C)", fontsize=8)
 plt.tight_layout()
 
 # Use a legend
+# This is constructed manually, so will not automatically update if you change
+# the plots. This is because the automatic seaborn legend has extra elements I
+# don't want.
 legend_elements = [
     Line2D(
         [0],
@@ -819,9 +868,6 @@ legend_elements = [
         markeredgecolor="none",
     ),
 ]
-ax1.legend(handles=legend_elements, loc='lower left', fontsize=8)
+ax1.legend(handles=legend_elements, loc="lower left", fontsize=8)
 
 plt.show()
-
-# %%
-plt.show()  # TODO remove this
