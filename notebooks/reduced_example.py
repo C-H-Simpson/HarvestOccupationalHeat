@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-6 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -60,6 +60,17 @@ import regionmask
 from intake import open_catalog
 from collections import defaultdict
 import calendar
+from collections import defaultdict
+from matplotlib.colors import Normalize
+from matplotlib.lines import Line2D
+from pathlib import Path
+import calendar
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import regionmask
+import seaborn as sns
+import xarray as xr
 
 from src import Labour
 
@@ -199,6 +210,7 @@ ds = (
 )
 ds
 
+
 # %%
 # Regardless of whether we are using monthly/daily/3-hourly data for the analysis,
 # we will want monthly surface air temperature for calculating GSAT.
@@ -277,6 +289,7 @@ gsat_change.attrs["short_name"] = "GSAT change"
 gsat_change.attrs["units"] = "degC"
 
 gsat_change.plot()
+plt.show()
 
 # %%
 # Temperatures are in kelvin by default - I want them in Celsius
@@ -290,9 +303,10 @@ for var in ds:
         ds[var] = ds[var] + absolute_zero
         ds[var].attrs = attrs
 
+# %%
 # Because of compression, huss will sometimes have small negative values, which is not valid.
 # It should be zero bounded.
-ds["huss"] = ds.huss.where(ds.huss < 0, 0)
+ds["huss"] = ds.huss.where(ds.huss > 0, 0)
 
 # %%
 # Reduce scope of climate data for speed.
@@ -302,6 +316,7 @@ valid_gridcells = ds_sftlf.sftlf.pipe(asia_only).pipe(lambda _da: _da > 0)
 valid_gridcells = valid_gridcells.drop("type").drop("member_id")
 ds = ds.pipe(asia_only).where(valid_gridcells)
 valid_gridcells.plot()
+plt.show()
 
 # Add in date auxillaries
 # This is because direct access via cftime dummy is slow.
@@ -352,7 +367,7 @@ for WBGT, WBT, Ta in (
         dask="parallelized",
         output_dtypes=[float],
     )
-    # TODO add in Gaspar based BGT.
+    # TODO add in Gaspar based BGT. Actually this probably isn't necessary.
 
     # Calculate WBGT, assuming the black globe temperature is approximated by the
     # air temperature. This will be approximately true in the shade.
@@ -364,11 +379,18 @@ for WBGT, WBT, Ta in (
     }
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 # TODO it will be worth saving and reloading this data.
-ds["wbgt_mean"].isel(time=-1).plot.hist()  # Just a check there is valid data
 
 # %%
-# Do the WBGT values makes sense?
-ds.isel(time=slice(-12,-1)).pipe(lambda _ds:_ds.wbgt_mean-_ds.tas).plot.hist()
+# Check the data make sense
+# It should be a cone.
+ds.sel(lat=10.0634, lon=105.5943, method='nearest').plot.scatter('tasmax', 'wbt_max')
+plt.show()
+
+# %%
+# Check the data make sense
+# This is West Bengal, it should get above 24 C regularly.
+ds['wbgt_max'].sel(lat=10.0634, lon=105.5943, method='nearest').plot()
+plt.show()
 
 
 # %% [markdown]
@@ -405,6 +427,7 @@ ax.set_ylabel("Labour impact (%)")
 ax.set_xlabel("WBGT ($\degree C$)")
 plt.tight_layout()
 plt.legend()
+plt.show()
 
 # %% [markdown]
 #
@@ -449,9 +472,21 @@ ds_labourloss = (
     .mean("wbgt_stat")
     .to_dataset(name="labour")
 )
+ds_labourloss.labour.attrs = {'long_name': 'Labour lost due to heat stress', 'short_name': 'lost_labour', 'units': '%'}
+
+# %%
 # Plot to check there is valid data
 ds_labourloss.labour.isel(time=-6, labour_func=1).plot.hist()
-print(ds_labourloss.labour.isel(time=-6))
+plt.show()
+
+# %%
+# Invoke computation of the monthly labour loss.
+# TODO it probably would make sense to save and reload this.
+# This will be about 800MB in the stock configuration of this notebook.
+ds_labourloss.to_netcdf('data/ds_labourloss.nc', encoding={'labour': {'dtype':'float32'}})
+
+# %%
+ds_labourloss = xr.open_dataset('data/ds_labourloss.nc')
 
 # %% [markdown]
 # Calculate correlations between annual GSAT and labour loss for each gridcell for each month.
@@ -491,17 +526,9 @@ def fit_parallel_wrapper(
 
 
 # %%
-# Invoke computation of the monthly labour loss.
-# TODO it probably would make sense to save and reload this.
-ds_labourloss = ds_labourloss.compute()
-
-# %%
 # Fit independently for each month and gridcell.
 # Note that the data array needs to contain monthly data by this point, even if
 # you started with daily or subdaily data.
-
-# I'm not seeing the results I expect from this at the moment. I think it's a problem somewhere between the WBGT and the labour functions?
-
 ds_monthly_trends = ds_labourloss.labour.groupby("time.month").apply(
     lambda x: fit_parallel_wrapper(
         gsat_change, x.groupby("time.year").mean().sel(year=gsat_change.year), "year"
@@ -510,7 +537,16 @@ ds_monthly_trends = ds_labourloss.labour.groupby("time.month").apply(
 ds_monthly_trends
 
 # %%
-ds_monthly_trends.sel(labour_func="labour_sahu", linregress="slope").max("month").plot()
+# Save and reload
+# This will be about 8 MB
+ds_monthly_trends.to_dataset(name='fit').to_netcdf(Path("data") / "ds_monthly_trends.nc", encoding={'fit': {'dtype':'float32'}})
+
+# %%
+ds_monthly_trends = xr.open_dataset(Path("data") / "ds_monthly_trends.nc")
+
+# %%
+ds_monthly_trends.fit.sel(labour_func="labour_sahu", linregress="slope").max("month").plot()
+plt.show()
 
 # %%
 # Fit for each gridcell with the whole year average.
@@ -526,7 +562,16 @@ ds_yearly_trends = (
 ds_yearly_trends
 
 # %%
-ds_yearly_trends.sel(labour_func="labour_sahu", linregress="slope").plot()
+# Save and reload
+# This will be about 8 MB
+ds_yearly_trends.to_dataset(name='fit').to_netcdf(Path("data") / "ds_yearly_trends.nc", encoding={'fit': {'dtype':'float32'}})
+
+# %%
+ds_yearly_trends = xr.open_dataset(Path("data") / "ds_yearly_trends.nc")
+
+# %%
+ds_yearly_trends.fit.sel(labour_func="labour_sahu", linregress="slope").plot()
+plt.show()
 
 
 # %% [markdown]
@@ -607,6 +652,325 @@ da_weights_seasonal = xr.concat(all_weights, dim="HASC")
 da_weights_monthly = xr.concat(monthly_weights, dim="HASC")
 da_peak_months = xr.concat(peak_months, dim="HASC")
 
+# %%
+# Latitude and monthly plots
+
+#damage_function = "WBGT_erf_sahu_fm"
+use_seasonal_weights = True  # If False, there will be more small points
+
+
+        # %%
+        # Get rid of non-significant gradients
+        ds.sel(linregress="slope")[damage_function] = ds.sel(linregress="slope")[
+            damage_function
+        ].where(ds.sel(linregress="rvalue")[damage_function] > 0.5, 0)
+
+        # %%
+        # Gridcell valid if it has any non nan points in any month.
+        # These should generally be all the land gridcells
+        # Because I masked out non-land in a previous step.
+        valid_gridcells = (
+            ds[damage_function]
+            .pipe(np.isnan)
+            .pipe(np.logical_not)
+            .sel(linregress="slope")
+            .squeeze()
+            .any("month")
+        )
+        for remove_coordinate in ("type", "height", "linregress"):
+            if remove_coordinate in valid_gridcells.coords:
+                valid_gridcells = valid_gridcells.drop(remove_coordinate)
+
+        # Can we do the regionwise aggregation quickly?
+        # Use regionmask to start with
+        regions = regionmask.from_geopandas(ra, names="HASC")
+        mask = regions.mask(ds.lon, ds.lat)
+        # Turn regions into dimensions instead
+        mask_regions = xr.concat([(mask == r.number) for r in regions], dim="region")
+        mask_regions["region"] = ra.HASC.values
+
+        all_masks = []
+        all_weights = []
+        monthly_weights = []
+        peak_months = []
+        for i_region, region in ra.iterrows():
+            months = [month_dict[m] for m in region[[f"HMO_PK{i}" for i in (1, 2, 3)]]]
+            weights = region[[f"P_S{i}" for i in (1, 2, 3)]].astype(float).values
+            single_mask = mask == regions[region.HASC].number
+            if not single_mask.any():
+                single_mask = valid_gridcells.sel(
+                    lon=[region.geometry.centroid.x],
+                    lat=[region.geometry.centroid.y],
+                    method="nearest",
+                )
+
+            single_mask = (
+                single_mask.assign_coords({"HASC": region.HASC})
+                .expand_dims(("HASC"))
+                .to_dataset(name="mask")
+            )
+            all_masks.append(single_mask)
+
+            all_weights.append(
+                xr.DataArray(
+                    weights.reshape(-1, 1),
+                    dims=("season", "HASC"),
+                    coords={
+                        "season": np.array([1, 2, 3]),
+                        "HASC": np.array(region.HASC).reshape(1),
+                    },
+                )
+            )
+
+            peak_months.append(
+                xr.DataArray(
+                    np.array(months).reshape(-1,1),
+                    dims=("season", "HASC"),
+                    coords={
+                        "season": np.array([1, 2, 3]),
+                        "HASC": np.array(region.HASC).reshape(1),
+                    },
+                )
+            )
+
+            monthly_weights.append(
+                xr.DataArray(
+                    np.array(
+                        [region[f"P_{calendar.month_abbr[m]}"] for m in range(1, 13)]
+                    ).reshape(12, 1),
+                    dims=("month", "HASC"),
+                    coords={
+                        "month": np.array(range(1, 13)),
+                        "HASC": np.array(region.HASC).reshape(1),
+                    },
+                )
+            )
+
+        ds_mask = xr.concat(all_masks, dim="HASC")
+        ds_mask["mask"] = ds_mask["mask"] > 0
+        da_weights_seasonal = xr.concat(all_weights, dim="HASC")
+        da_weights_monthly = xr.concat(monthly_weights, dim="HASC")
+        da_peak_months = xr.concat(peak_months, dim="HASC")
+
+        # Data processing
+        # average trend by HASC, by month or season
+        if use_seasonal_weights:
+            ds_HASC = (
+                ds.where(ds_mask.mask)
+                .where(ds.month==da_peak_months)
+                .weighted(da_weights_seasonal)
+                .mean(("lon", "lat", "month"))
+                .drop("height")
+            )
+            ds_HASC["weight"] = da_weights_seasonal
+            ds_HASC["month"] = da_peak_months.where(lambda x:x>0)
+            seasonal_variable = 'season'
+            assert('season' in ds_HASC.dims)
+        else: # use monthly weights
+            ds_HASC = (
+                ds.where(ds_mask.mask)
+                .where(ds.month==da_peak_months)
+                .weighted(da_weights_seasonal)
+                .mean(("lon", "lat"))
+                .drop("height")
+            )
+            ds_HASC["weight"] = da_weights_monthly
+            seasonal_variable = 'month'
+            assert('month' in ds_HASC.dims)
+
+        ds_HASC["lat_"] = xr.DataArray(
+            ra.centroid.y, dims="HASC", coords={"HASC": ra.HASC}
+        )
+
+        # Plotting
+        lookup = defaultdict(lambda: "All others")
+        lookup["CN"] = "China"
+        lookup["IN"] = "India"
+        lookup["ID"] = "Indonesia"
+        # lookup['PH'] = 'Philippines'
+        # for code in ('KH', 'MM', 'MY', 'TH', 'VN', 'BN', 'PH'):
+        # lookup[code] = 'Southeast Asia'
+        ds_HASC["country_label"] = (
+            "HASC",
+            [lookup[r] for r in ds_HASC.HASC.str[0:2].values],
+        )
+
+        ds_HASC["COUNTRY"] = ds_HASC.HASC.str[0:2]
+        ds_HASC["REGION"] = ds_HASC.HASC.str[3:5]
+
+        # Convert to pandas dataframe
+        df = ds_HASC.sel(linregress="slope").to_dataframe().reset_index()
+        df["file"] = f
+        df_list.append(df)
+
+    df = pd.concat(df_list)
+
+    df["group_region"] = np.where(
+        np.in1d(df.COUNTRY, ["IN", "CN"]), df.REGION, df.COUNTRY
+    )
+
+    # Do weighted aggregations to make the plot less busy
+    df["weight_x_damage"] = df.weight * df[damage_function]
+    # df = df.groupby(["group_region", "month"]).aggregate( # inconsistent with other plots
+    # df = df.groupby(['country_label', 'month']).aggregate( # too tidy
+    df = df.groupby(["COUNTRY", "REGION", "month"]).aggregate(  # messy but consistent
+        {
+            "weight": "sum",
+            "weight_x_damage": "sum",
+            "lat_": "mean",
+            "country_label": "first",
+        }
+    )
+    df["mean_damage"] = df["weight_x_damage"] / df["weight"]
+    df = df.reset_index().sort_values("country_label")
+
+    # Exclude tiny points
+    # df = df.where(df.weight > df.weight.max() / 30)
+
+    # Make canvas for plot against lat
+    fig1, ax1 = plt.subplots(figsize=(3.5, 3.5))
+
+    # Plot with seaborn
+    # Scatterplot by latitude
+    sns.scatterplot(
+        x=df.lat_,
+        y=df["mean_damage"],
+        size=df.weight,
+        hue=df.country_label,
+        # hue=m,
+        sizes=(0, 300),
+        size_norm=Normalize(0, df.weight.max()),
+        alpha=0.8,
+        ax=ax1,
+        legend=False,
+    )
+
+    # Use a legend
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            label="All others",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[0],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="China",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[1],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="India",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[2],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="Indonesia",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[3],
+            markeredgecolor="none",
+        ),
+        # Line2D([0], [0], label='All Asia', color='k', markeredgecolor='none',),
+    ]
+    # ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
+
+    # ax1.set_xticks(ticks=range(1,13))
+    # ax1.set_xticklabels(labels=[calendar.month_abbr[i][0] for i in range(1,13)])
+    ax1.set_xlabel("Latitude (deg N)", fontsize=8)
+    ax1.set_ylabel("Hazard gradient (%/C)", fontsize=8)
+    plt.tight_layout()
+
+    output_dir = Path("subdaily/figures/latitude_trend") / damage_function
+    output_dir.mkdir(exist_ok=True, parents=True)
+    df[['COUNTRY', 'REGION', 'month', 'lat_', 'weight', 'mean_damage']].to_csv(output_dir / 'monthly_breakdown.csv')
+    fig1.savefig(output_dir / "lat_breakdown.pdf")
+    fig1.savefig(output_dir / "lat_breakdown.png")
+
+    # Make canvas for plot against month
+    fig2, ax1 = plt.subplots(figsize=(3.5, 3.5))
+
+    # Plot with seaborn
+    # Scatterplot by month
+    sns.scatterplot(
+        x=df.month,
+        y=df["mean_damage"],
+        size=df.weight,
+        hue=df.country_label,
+        # hue=m,
+        sizes=(0, 300),
+        size_norm=Normalize(0, df.weight.max()),
+        alpha=0.8,
+        ax=ax1,
+        legend=False,
+    )
+
+    # Use a legend
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            label="All others",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[0],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="China",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[1],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="India",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[2],
+            markeredgecolor="none",
+        ),
+        Line2D(
+            [0],
+            [0],
+            label="Indonesia",
+            marker="o",
+            color="none",
+            markerfacecolor=sns.color_palette()[3],
+            markeredgecolor="none",
+        ),
+        Line2D([0], [0], label="All Asia", color="k", markeredgecolor="none",),
+    ]
+    # ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
+
+    ax1.set_xticks(ticks=range(1, 13))
+    ax1.set_xticklabels(labels=[calendar.month_abbr[i][0] for i in range(1, 13)])
+    ax1.set_xlabel("Month", fontsize=8)
+    ax1.set_ylabel("Hazard gradient (%/C)", fontsize=8)
+    plt.tight_layout()
+
+    output_dir = Path("subdaily/figures/monthly_trend") / damage_function
+    output_dir.mkdir(exist_ok=True, parents=True)
+    fig2.savefig(output_dir / "monthly_breakdown.pdf")
+    fig2.savefig(output_dir / "monthly_breakdown.png")
+    # plt.show()
+    # plt.close()
 
 # %%
 plt.show() # TODO remove this
