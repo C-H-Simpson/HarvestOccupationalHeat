@@ -31,6 +31,10 @@
 # you can follow and reproduce on your own computer.
 # For this reason, we use only one climate model, and only one future
 # pathway for emissions.
+#
+# See the preprint
+# [Regional disparities and seasonal differences in climate risk to rice labour](https://doi.org/10.31223/X5SW3N)
+
 
 # %%
 # Use this cell if the conda environment is not already set up
@@ -186,7 +190,6 @@ cat = open_catalog(
 
 # %%
 # TODO Explain why it isn't simple to extend to lots of models.
-# TODO Make it simple to switch to 3-hourly data.
 CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
 CMIP6_experiments = ["historical", "ssp585"]
 CMIP6_search = {
@@ -318,6 +321,7 @@ ds = ds.pipe(asia_only).where(valid_gridcells)
 valid_gridcells.plot()
 plt.show()
 
+# %%
 # Add in date auxillaries
 # This is because direct access via cftime dummy is slow.
 ds["dayofyear"] = ds.time.dt.dayofyear
@@ -367,7 +371,6 @@ for WBGT, WBT, Ta in (
         dask="parallelized",
         output_dtypes=[float],
     )
-    # TODO add in Gaspar based BGT. Actually this probably isn't necessary.
 
     # Calculate WBGT, assuming the black globe temperature is approximated by the
     # air temperature. This will be approximately true in the shade.
@@ -380,12 +383,19 @@ for WBGT, WBT, Ta in (
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 
 # %%
+# This is about 130 MB
 ds[["wbgt_mean", "wbgt_max", "wbgt_mid"]].to_netcdf(
     Path("data") / "ds_wbgt.nc",
     encoding=dict(
         [(var, {"dtype": "float32"}) for var in ["wbgt_mean", "wbgt_max", "wbgt_mid"]]
     ),
 )
+
+# %%
+ds_wbgt = xr.open_dataset(
+    Path("data") / "ds_wbgt.nc",
+)
+# ds = ds_wbgt
 
 # %%
 # Check the data make sense
@@ -418,7 +428,6 @@ plt.show()
 # could explore how the choice of labour impact function affects the results,
 # and even define your own.
 # You can see these different assumptions plotted below.
-# TODO add other labour functions as dimension.
 
 # %%
 fig, ax = plt.subplots()
@@ -492,7 +501,6 @@ plt.show()
 
 # %%
 # Invoke computation of the monthly labour loss.
-# TODO it probably would make sense to save and reload this.
 # This will be about 800MB in the stock configuration of this notebook.
 ds_labourloss.to_netcdf(
     "data/ds_labourloss.nc", encoding={"labour": {"dtype": "float32"}}
@@ -671,7 +679,6 @@ da_peak_months = xr.concat(peak_months, dim="HASC")
 
 # %% [markdown]
 # ## Results for example locations
-# TODO look at results in West Bengal, Punjab, Mekong River Delta.
 
 # %%
 # West Bengal
@@ -697,6 +704,25 @@ ds_labourloss_yearly = (
 )
 ds_labourloss_yearly["gsat_change"] = gsat_change
 ds_labourloss_yearly.plot.scatter("gsat_change", "labour")
+
+# Get the gradient we fitted
+slope = (
+    ds_yearly_trends.sel(linregress="slope", labour_func="labour_sahu")
+    .where(mask_local)
+    .mean(("lat", "lon"))
+    .compute()
+    .fit.values
+)
+intercept = (
+    ds_yearly_trends.sel(linregress="intercept", labour_func="labour_sahu")
+    .where(mask_local)
+    .mean(("lat", "lon"))
+    .compute()
+    .fit.values
+)
+trendline = gsat_change * slope + intercept
+plt.plot(gsat_change, trendline)
+
 plt.tight_layout()
 plt.show()
 
@@ -708,7 +734,33 @@ sns.scatterplot(
     x="month",
     y="fit",
 )
-ra[ra.HASC == HASC_local]
+plt.show()
+
+
+# %%
+df_labourloss_monthly = (
+    ds_labourloss[["labour", "year", "month"]]
+    .sel(labour_func="labour_sahu")
+    .where(mask_local)
+    .mean(("lat", "lon"), keep_attrs=True)
+    .to_dataframe()
+    .reset_index()
+    .groupby(["year", "month"])
+    .mean()
+    .reset_index()
+)
+df_labourloss_dec = df_labourloss_monthly[df_labourloss_monthly.month == 12]
+df_labourloss_jun = df_labourloss_monthly[df_labourloss_monthly.month == 6]
+
+df_labourloss_jun = df_labourloss_jun.set_index("year")
+df_labourloss_jun["gsat_change"] = gsat_change.to_dataframe().tas
+
+df_labourloss_dec = df_labourloss_dec.set_index("year")
+df_labourloss_dec["gsat_change"] = gsat_change.to_dataframe().tas
+
+sns.scatterplot(data=df_labourloss_jun, x="gsat_change", y="labour", label="June")
+sns.scatterplot(data=df_labourloss_dec, x="gsat_change", y="labour", label="December")
+plt.legend()
 plt.show()
 
 # %%
