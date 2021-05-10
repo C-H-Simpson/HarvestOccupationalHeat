@@ -405,24 +405,6 @@ for WBGT, WBT, Ta in (
     }
 ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 
-# %%
-# Save and reload.
-# This triggers computation.
-# This is about 130 MB
-ds[["wbgt_mean", "wbgt_max", "wbgt_mid"]].to_netcdf(
-    Path("data") / "ds_wbgt.nc",
-    encoding=dict(
-        [(var, {"dtype": "float32"}) for var in ["wbgt_mean", "wbgt_max", "wbgt_mid"]]
-    ),
-)
-
-# %%
-# TODO remove or make consistent the save/reload instructions.
-ds_wbgt = xr.open_dataset(
-    Path("data") / "ds_wbgt.nc",
-)
-# ds = ds_wbgt
-
 # %% [markdown]
 # You can see that WBGT is related to air temperature, but does not have a 1:1 relationship.
 
@@ -537,15 +519,6 @@ ds_labourloss.labour.attrs = {
     "units": "%",
 }
 
-# %%
-# Invoke computation of the monthly labour loss.
-# This will be about 800MB in the stock configuration of this notebook.
-ds_labourloss.to_netcdf(
-    "data/ds_labourloss.nc", encoding={"labour": {"dtype": "float32"}}
-)
-
-# %%
-ds_labourloss = xr.open_dataset("data/ds_labourloss.nc")
 
 # %% [markdown]
 # Now we want to calculate correlations between annual GSAT and labour loss for
@@ -611,15 +584,6 @@ ds_monthly_trends = ds_labourloss.labour.groupby("time.month").apply(
 )
 ds_monthly_trends
 
-# %%
-# Save and reload
-# This will be about 8 MB
-ds_monthly_trends.to_dataset(name="fit").to_netcdf(
-    Path("data") / "ds_monthly_trends.nc", encoding={"fit": {"dtype": "float32"}}
-)
-
-# %%
-ds_monthly_trends = xr.open_dataset(Path("data") / "ds_monthly_trends.nc")
 
 # %%
 ds_monthly_trends.fit.sel(labour_func="labour_sahu", linregress="slope").max(
@@ -641,17 +605,6 @@ ds_yearly_trends = (
     )
 )
 ds_yearly_trends
-
-# %%
-# Save and reload
-# This will be about 8 MB
-ds_yearly_trends.to_dataset(name="fit").to_netcdf(
-    Path("data") / "ds_yearly_trends.nc", encoding={"fit": {"dtype": "float32"}}
-)
-
-# %%
-ds_yearly_trends = xr.open_dataset(Path("data") / "ds_yearly_trends.nc")
-
 
 # %% [markdown]
 # ## Using the RiceAtlas data
