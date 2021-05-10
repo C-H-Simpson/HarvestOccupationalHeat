@@ -120,7 +120,7 @@ client
 # and many entities have multiple yearly harvests. The data are representative
 # of the years 2010-2012. We used this to identify harvest dates. Location
 # entities in RiceAtlas vary greatly in size, and many are much smaller than
-# the grid spacing of the climate models considered. 
+# the grid spacing of the climate models considered.
 #
 # RiceAtlas has one row per location. The locations have geometries
 # provided. Some are much larger that others.
@@ -134,6 +134,7 @@ client
 
 # %%
 from src.RiceAtlas import ra
+
 ra
 
 # Reduce scope of RiceAtlas data
@@ -205,7 +206,7 @@ CMIP6_search = {
     "source_id": "UKESM1-0-LL",
     "experiment_id": CMIP6_experiments,
     "variable_id": CMIP6_variables,
-    "table_id": "Amon", # This could be changed to 'daily'
+    "table_id": "Amon",  # This could be changed to 'daily'
     "grid_label": "gn",
     "member_id": "r1i1p1f2",
 }
@@ -231,8 +232,8 @@ ds
 
 # %%
 CMIP6_search_gsat = CMIP6_search
-CMIP6_search_gsat['variable_id'] = 'tas'
-CMIP6_search_gsat['table_id'] = 'Amon'
+CMIP6_search_gsat["variable_id"] = "tas"
+CMIP6_search_gsat["table_id"] = "Amon"
 cat_return = cat.climate.cmip6_gcs.search(**CMIP6_search_gsat)
 ds_tas = (
     xr.combine_by_coords(
@@ -253,7 +254,7 @@ ds_tas
 # %%
 # Cell area
 CMIP6_search_areacella = {
-    "source_id": CMIP6_search['source_id']
+    "source_id": CMIP6_search["source_id"],
     "variable_id": "areacella",
     "grid_label": "gn",
 }
@@ -267,7 +268,7 @@ ds_areacella
 # %%
 # Land fraction
 CMIP6_search_sftlf = {
-    "source_id": CMIP6_search['source_id']
+    "source_id": CMIP6_search["source_id"],
     "variable_id": "sftlf",
     "grid_label": "gn",
 }
@@ -358,7 +359,7 @@ ds["year"] = ds.time.dt.year
 # temperature approximates black-globe temperature (BGT).  Furthermore,
 # cloud cover is one of the most uncertain aspects of global climate
 # models.
-# 
+#
 # In the supplementary material of the full article, we explore the effect of
 # excluding radiation: although this leads to underestimation of heat stress in
 # some conditions, it makes little difference to long-term trends and is
@@ -372,7 +373,7 @@ ds["year"] = ds.time.dt.year
 # Air-Conditioning Engineers handbook. Field measured WBT decreases with wind
 # speed at low speed (<2 m/s, a light breeze), but higher wind speeds have a
 # lesser effect23. The WBT calculation used is consistent with a light breeze,
-# and variation in wind speed is neglected. 
+# and variation in wind speed is neglected.
 #
 # See references re WBGT:
 # Epstein, Y. & Moran, D. S. Thermal Comfort and the Heat Stress Indices. Ind. Health 44, 388–398 (2006).
@@ -452,7 +453,7 @@ plt.show()
 # due to these assumptions cannot be assessed without larger scale field
 # observations. The labour loss function is 5.14*WBGT- 218, in units of %,
 # clipped at 0 and 100. This means that 0% loss occurs at 23 °C and 100% loss
-# occurs at 42.5 °C. 
+# occurs at 42.5 °C.
 #
 # To facilitate comparison to other studies, results were also calculated using
 # different assumptions about the relationship between WBGT and labour
@@ -496,7 +497,7 @@ plt.show()
 # other papers including Orlov et al (2020) and Watts et al (2021).
 # In the supplementary material of the main article, we explore the effect of
 # using 3-hourly CMIP6 data instead of the 4+4+4 data, and get similar results overall.
-# 
+#
 # * Kjellstrom, T., Freyberg, C., Lemke, B., Otto, M. & Briggs, D. Estimating population heat exposure and impacts on working people in conjunction with climate change. Int. J. Biometeorol. 62, 291–306 (2018).
 # * Watts, N. et al. The 2020 report of The Lancet Countdown on health and climate change: responding to converging crises. The Lancet vol. 397 129–170 (2021).
 
@@ -639,6 +640,7 @@ ds_yearly_trends.to_dataset(name="fit").to_netcdf(
 # %%
 ds_yearly_trends = xr.open_dataset(Path("data") / "ds_yearly_trends.nc")
 
+
 # %% [markdown]
 # ## Using the RiceAtlas data
 #
@@ -655,7 +657,6 @@ mask_regions["region"] = ra.HASC.values
 
 all_masks = []
 all_weights = []
-monthly_weights = []
 peak_months = []
 for i_region, region in ra.iterrows():
     months = [month_dict[m] for m in region[[f"HMO_PK{i}" for i in (1, 2, 3)]]]
@@ -697,24 +698,12 @@ for i_region, region in ra.iterrows():
         )
     )
 
-    monthly_weights.append(
-        xr.DataArray(
-            np.array(
-                [region[f"P_{calendar.month_abbr[m]}"] for m in range(1, 13)]
-            ).reshape(12, 1),
-            dims=("month", "HASC"),
-            coords={
-                "month": np.array(range(1, 13)),
-                "HASC": np.array(region.HASC).reshape(1),
-            },
-        )
-    )
 
 ds_mask = xr.concat(all_masks, dim="HASC")
 ds_mask["mask"] = ds_mask["mask"] > 0
 da_weights_seasonal = xr.concat(all_weights, dim="HASC")
-da_weights_monthly = xr.concat(monthly_weights, dim="HASC")
 da_peak_months = xr.concat(peak_months, dim="HASC")
+
 
 # %% [markdown]
 # ## Example: West Bengal
@@ -775,7 +764,7 @@ intercept = (
     .compute()
     .fit.values
 )
-R2 =(
+R2 = (
     ds_yearly_trends.sel(linregress="rvalue", labour_func="labour_sahu")
     .where(mask_local)
     .min(("lat", "lon"))
@@ -783,11 +772,15 @@ R2 =(
     .fit.values
 )
 trendline = gsat_change * slope + intercept
-ax.plot(gsat_change, trendline, color='k')
-plt.text(0.1, 0.8, f"R2 = {R2:0.2f}",
-     horizontalalignment='left',
-     verticalalignment='center',
-     transform = ax.transAxes)
+ax.plot(gsat_change, trendline, color="k")
+plt.text(
+    0.1,
+    0.8,
+    f"R2 = {R2:0.2f}",
+    horizontalalignment="left",
+    verticalalignment="center",
+    transform=ax.transAxes,
+)
 plt.tight_layout()
 plt.show()
 
@@ -815,8 +808,13 @@ plt.ylabel("Hazard gradient (%/C)")
 ax.set_xticks(ticks=range(1, 13))
 ax.set_xticklabels(labels=[calendar.month_abbr[i][0] for i in range(1, 13)])
 ax1 = ax.twinx()
-prod_local = ra[ra.HASC==HASC_local][[f"P_{calendar.month_abbr[i]}" for i in range(1, 13)]].values.reshape(-1) / 1e6
-ax1.plot(range(1,13), prod_local, c=sns.color_palette()[2], label="Rice harvest")
+prod_local = (
+    ra[ra.HASC == HASC_local][
+        [f"P_{calendar.month_abbr[i]}" for i in range(1, 13)]
+    ].values.reshape(-1)
+    / 1e6
+)
+ax1.plot(range(1, 13), prod_local, c=sns.color_palette()[2], label="Rice harvest")
 ax1.set_ylabel("Rice harvest (million tonnes)")
 fig.legend()
 plt.show()
@@ -859,114 +857,104 @@ plt.show()
 # Having looked at the example of one location, what does the global distribution look like?
 
 # %%
-use_seasonal_weights = True
-# If use_seasonal_weights is False, there will be more small points. RiceAtlas
-# contains peak months for each harvest, and the weight of that harvest. It
-# also provides the harvested amount for each month.
+# Average trend by HASC, by harvest season.
+ds_HASC_monthly = (
+    ds_monthly_trends.where(ds_mask.mask)
+    .where(ds_monthly_trends.month == da_peak_months)
+    .weighted(da_weights_seasonal)
+    .mean(("lon", "lat", "month"))
+)
+ds_HASC_monthly["weight"] = da_weights_seasonal
+ds_HASC_monthly["month"] = da_peak_months.where(lambda x: x > 0)
 
-# Average trend by HASC, by month or season
-if use_seasonal_weights:
-    ds_HASC = (
-        ds_monthly_trends.where(ds_mask.mask)
-        .where(ds_monthly_trends.month == da_peak_months)
-        .weighted(da_weights_seasonal)
-        .mean(("lon", "lat", "month"))
+# The same, but for the year as a whole regardless of when the harvest is.
+ds_HASC_yearly = (
+    ds_yearly_trends.where(ds_mask.mask)
+    .weighted(da_weights_seasonal.sum("season"))
+    .mean(("lon", "lat"))
+)
+ds_HASC_yearly["weight"] = da_weights_seasonal.sum("season")
+
+# Now add some variables that will be useful for plotting.
+def add_lat(_ds):
+    """Assign a latitude for each SUB_REGION"""
+    _ds["lat_"] = xr.DataArray(ra.centroid.y, dims="HASC", coords={"HASC": ra.HASC})
+    return _ds
+
+
+def add_country_labels(_ds):
+    """Labels for marker colour and legend"""
+    lookup = defaultdict(lambda: "All others")
+    lookup["CN"] = "China"
+    lookup["IN"] = "India"
+    lookup["ID"] = "Indonesia"
+    _ds["country_label"] = (
+        "HASC",
+        [lookup[r] for r in _ds.HASC.str[0:2].values],
     )
-    ds_HASC["weight"] = da_weights_seasonal
-    ds_HASC["month"] = da_peak_months.where(lambda x: x > 0)
-    seasonal_variable = "season"
-    assert "season" in ds_HASC.dims
-else:  # use monthly weights
-    ds_HASC = (
-        ds_monthly_trends.where(ds_mask.mask)
-        .where(ds_monthly_trends.month == da_peak_months)
-        .weighted(da_weights_seasonal)
-        .mean(("lon", "lat"))
+    _ds["COUNTRY"] = _ds.HASC.str[0:2]
+    _ds["REGION"] = _ds.HASC.str[3:5]
+    return _ds
+
+
+ds_HASC_monthly = ds_HASC_monthly.pipe(add_lat).pipe(add_country_labels)
+ds_HASC_yearly = ds_HASC_yearly.pipe(add_lat).pipe(add_country_labels)
+
+# %%
+# Now turn it into pandas dataframes, and do weighted aggregations.
+def gradient_xr_to_dataframe(_ds):
+    """Convert to pandas dataframe. This makes it easier to plot with seaborn."""
+    _df = (
+        _ds.sel(linregress="slope", labour_func="labour_sahu")
+        .to_dataframe()
+        .reset_index()
     )
-    ds_HASC["weight"] = da_weights_monthly
-    seasonal_variable = "month"
-    assert "month" in ds_HASC.dims
+    return _df
 
-# Assign a latitude for each SUB_REGION
-ds_HASC["lat_"] = xr.DataArray(ra.centroid.y, dims="HASC", coords={"HASC": ra.HASC})
+def weighted_aggregations(_df):
+    """Do weighted aggregations to make the scatterplot less busy"""
+    _df["weight_x_damage"] = _df.weight * _df["fit"]
+    grouping = ["COUNTRY", "REGION", "month"] if "month" in _df else ["COUNTRY", "REGION"]
+    _df = _df.groupby(
+        grouping
+    ).aggregate(  # messy but consistent
+        {
+            "weight": "sum",
+            "weight_x_damage": "sum",
+            "lat_": "mean",
+            "country_label": "first",
+        }
+    )
+    _df["mean_damage"] = _df["weight_x_damage"] / _df["weight"]
+    _df = _df.reset_index().sort_values("country_label")
+    return _df
 
-# Labels for marker colour and legend
-lookup = defaultdict(lambda: "All others")
-lookup["CN"] = "China"
-lookup["IN"] = "India"
-lookup["ID"] = "Indonesia"
-ds_HASC["country_label"] = (
-    "HASC",
-    [lookup[r] for r in ds_HASC.HASC.str[0:2].values],
-)
-ds_HASC["COUNTRY"] = ds_HASC.HASC.str[0:2]
-ds_HASC["REGION"] = ds_HASC.HASC.str[3:5]
+df_monthly = gradient_xr_to_dataframe(ds_HASC_monthly).pipe(weighted_aggregations)
+df_yearly = gradient_xr_to_dataframe(ds_HASC_yearly).pipe(weighted_aggregations)
 
-# Convert to pandas dataframe.
-# This makes it easier to plot with seaborn.
-df = (
-    ds_HASC.sel(linregress="slope", labour_func="labour_sahu")
-    .to_dataframe()
-    .reset_index()
-)
-
-# Do weighted aggregations to make the plot less busy
-df["weight_x_damage"] = df.weight * df["fit"]
-# India has very small SUB_REGION, China does not have SUB_REGION,
-# so group by REGION in these cases.
-df["group_region"] = np.where(np.in1d(df.COUNTRY, ["IN", "CN"]), df.REGION, df.COUNTRY)
-df = df.groupby(["COUNTRY", "REGION", "month"]).aggregate(  # messy but consistent
-    {
-        "weight": "sum",
-        "weight_x_damage": "sum",
-        "lat_": "mean",
-        "country_label": "first",
-    }
-)
-df["mean_damage"] = df["weight_x_damage"] / df["weight"]
-df = df.reset_index().sort_values("country_label")
 
 # %% [markdown]
-#
+# TODO explicitly define 'hazard gradient'
+# This scatterplot shows hazard gradient for each harvest season
+# and location, plotted against latitude.
 
 # %%
 fig1, ax1 = plt.subplots(figsize=(3.5, 3.5))
 # Scatterplot by latitude
 sns.scatterplot(
-    x=df.lat_,
-    y=df["mean_damage"],
-    size=df.weight,
-    hue=df.country_label,
+    x=df_monthly.lat_,
+    y=df_monthly["mean_damage"],
+    size=df_monthly.weight,
+    hue=df_monthly.country_label,
     sizes=(0, 300),
-    size_norm=Normalize(0, df.weight.max()),
+    size_norm=Normalize(0, df_monthly.weight.max()),
     alpha=0.8,
     ax=ax1,
     legend=False,
 )
 ax1.set_xlabel("Latitude (deg N)", fontsize=8)
 ax1.set_ylabel("Hazard gradient (%/C)", fontsize=8)
-plt.tight_layout()
-plt.show()
-
-# %%
-fig2, ax2 = plt.subplots(figsize=(3.5, 3.5))
-# Scatterplot by month
-sns.scatterplot(
-    x=df.month,
-    y=df["mean_damage"],
-    size=df.weight,
-    hue=df.country_label,
-    sizes=(0, 300),
-    size_norm=Normalize(0, df.weight.max()),
-    alpha=0.8,
-    ax=ax2,
-    legend=False,
-)
-
-ax2.set_xticks(ticks=range(1, 13))
-ax2.set_xticklabels(labels=[calendar.month_abbr[i][0] for i in range(1, 13)])
-ax2.set_xlabel("Month", fontsize=8)
-ax2.set_ylabel("Hazard gradient (%/C)", fontsize=8)
+plt.title("Rice harvest only")
 plt.tight_layout()
 
 # Use a legend
@@ -1022,5 +1010,70 @@ ax1.legend(handles=legend_elements, loc="lower left", fontsize=8)
 
 plt.show()
 
+# %% [markdown]
+# This scatterplot shows the hazard gradient against
+# latitude assuming the full year is equally weighted.
+# %%
+fig2, ax2 = plt.subplots(figsize=(3.5, 3.5))
+# Scatterplot by latitude
+sns.scatterplot(
+    x=df_yearly.lat_,
+    y=df_yearly["mean_damage"],
+    size=df_yearly.weight,
+    hue=df_yearly.country_label,
+    sizes=(0, 300),
+    size_norm=Normalize(0, df_yearly.weight.max()),
+    alpha=0.8,
+    ax=ax2,
+    legend=False,
+)
+ax2.set_xlabel("Latitude (deg N)", fontsize=8)
+ax2.set_ylabel("Hazard gradient (%/C)", fontsize=8)
+plt.title("Whole year")
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# This scatterplot shows the hazard gradient against the peak month of the harvest.
+
+# %%
+fig3, ax3 = plt.subplots(figsize=(3.5, 3.5))
+# Scatterplot by month
+sns.scatterplot(
+    x=df_monthly.month,
+    y=df_monthly["mean_damage"],
+    size=df_monthly.weight,
+    hue=df_monthly.country_label,
+    sizes=(0, 300),
+    size_norm=Normalize(0, df_monthly.weight.max()),
+    alpha=0.8,
+    ax=ax3,
+    legend=False,
+)
+
+ax3.set_xticks(ticks=range(1, 13))
+ax3.set_xticklabels(labels=[calendar.month_abbr[i][0] for i in range(1, 13)])
+ax3.set_xlabel("Month", fontsize=8)
+ax3.set_ylabel("Hazard gradient (%/C)", fontsize=8)
+plt.tight_layout()
+
+plt.show()
+
+# %% [markdown]
+# Two interacting effects explain most of the spatial variation
+# in the results.  Firstly, locations close to the equator have higher
+# temperatures. Secondly, for locations that are further from the equator there
+# is greater seasonal variation in temperature, so the time of year at which
+# the harvest occurs is important.  If the time of year of the harvest is not
+# considered, then the hazard gradient is mostly determined by latitude. All
+# large harvests that are not exposed to high hazard-gradients peak between
+# September and December inclusive. Close to the equator, for example in
+# Indonesia, hazard gradient is not very seasonally dependent as there is
+# little seasonal variation in temperature. By comparison, in China and India
+# the time of year of the harvest season has a much stronger effect on the
+# hazard gradient.
+
 # %%
 # TODO map plot
+# %%
+# TODO histogram type plots
