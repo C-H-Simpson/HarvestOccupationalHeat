@@ -5,7 +5,8 @@ ENV_SPEC=$2
 
 function create_env {
 	echo "creating $ENV_NAME from $ENV_SPEC" 
-	conda env create -n $ENV_NAME --file $ENV_SPEC
+	conda env create -n $ENV_NAME
+	mamba env update -n $ENV_NAME --file $ENV_SPEC
 	eval "$(conda shell.bash hook)" && conda activate $ENV_NAME
 	conda install ipykernel -y
 	python -m ipykernel install --user --name $ENV_NAME --display-name $ENV_NAME
