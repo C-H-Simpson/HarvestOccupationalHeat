@@ -381,7 +381,6 @@ ds["year"] = ds.time.dt.year
 # Parsons, K. Occupational Health Impacts of Climate Change: Current and Future ISO Standards for the Assessment of Heat Stress. Ind. Health 51, 86–100 (2013).
 
 # %%
-# TODO make this dimensional
 for WBGT, WBT, Ta in (
     ("wbgt_max", "wbt_max", "tasmax"),
     ("wbgt_mean", "wbt_mean", "tas"),
@@ -552,6 +551,19 @@ ds_labourloss = xr.open_dataset("data/ds_labourloss.nc")
 # Now we want to calculate correlations between annual GSAT and labour loss for
 # each gridcell for each month. A key hypothesis of this work is that these
 # are highly correlated.
+#
+# Independently for each climate model, and for each location and season, a
+# linear trend was fitted between the the change in the global mean
+# near-surface air temperature (GSAT) and the labour productivity metric. Data
+# from historical model runs and SSPs were included together in a single fit,
+# so that a range of GSAT values were included; but each model, and harvest
+# season and location was fit independently.
+#
+# We defined the gradient of this fit as the “hazard gradient”, the purpose of
+# which is to summarise the relationship between changes in GSAT and local
+# changes in labour productivity via WBGT, to explore the spatial patterns of
+# change. This effectively collapses variation in time, the climate sensitivity
+# of each model, and emissions scenario into a single dimension.
 
 # %%
 def new_linregress(x, y):
@@ -911,13 +923,14 @@ def gradient_xr_to_dataframe(_ds):
     )
     return _df
 
+
 def weighted_aggregations(_df):
     """Do weighted aggregations to make the scatterplot less busy"""
     _df["weight_x_damage"] = _df.weight * _df["fit"]
-    grouping = ["COUNTRY", "REGION", "month"] if "month" in _df else ["COUNTRY", "REGION"]
-    _df = _df.groupby(
-        grouping
-    ).aggregate(  # messy but consistent
+    grouping = (
+        ["COUNTRY", "REGION", "month"] if "month" in _df else ["COUNTRY", "REGION"]
+    )
+    _df = _df.groupby(grouping).aggregate(  # messy but consistent
         {
             "weight": "sum",
             "weight_x_damage": "sum",
@@ -929,12 +942,35 @@ def weighted_aggregations(_df):
     _df = _df.reset_index().sort_values("country_label")
     return _df
 
+
 df_monthly = gradient_xr_to_dataframe(ds_HASC_monthly).pipe(weighted_aggregations)
 df_yearly = gradient_xr_to_dataframe(ds_HASC_yearly).pipe(weighted_aggregations)
 
+# %% [markdown]
+# We can see that overall we get a very different distribution of hazard
+# gradients between places if we use the whole year as opposed to just the
+# harvest season.
+
+# %%
+amax = max(df_yearly.mean_damage.max(), df_monthly.mean_damage.max())
+bins = np.arange(0, amax + 0.5, 0.5)
+plt.hist(
+    df_yearly.mean_damage, weights=df_yearly.weight / 1e6, label="Whole year", bins=bins
+)
+plt.hist(
+    df_monthly.mean_damage,
+    weights=df_monthly.weight / 1e6,
+    label="Harvest season",
+    alpha=0.7,
+    bins=bins,
+)
+plt.xlabel("Hazard gradient (%/C)")
+plt.ylabel("Rice production (Million tonnes)")
+plt.legend()
+plt.show()
+
 
 # %% [markdown]
-# TODO explicitly define 'hazard gradient'
 # This scatterplot shows hazard gradient for each harvest season
 # and location, plotted against latitude.
 
@@ -1072,8 +1108,90 @@ plt.show()
 # little seasonal variation in temperature. By comparison, in China and India
 # the time of year of the harvest season has a much stronger effect on the
 # hazard gradient.
+#
+# Labour inputs to rice production are seasonal, with more labour occurring
+# around planting and harvesting. This labour cannot be delayed or
+# displaced to other times of year, and the timeliness of these activities
+# affects yield and quality. Averaging across the full year assumes that labour
+# for any given activity can be exchanged with labour at a different time of
+# year, which is clearly not the case for planting and harvesting. In this
+# study, we have shown the importance of considering the seasonality of
+# agricultural labour when estimating the effect of heat-stress on labour
+# productivity. We have focussed only on harvesting, and only on rice; however,
+# each crop and each labour-intensive part of production will have its own the
+# seasonality that should be incorporated into estimates. Other studies into
+# the effect of climate change on labour productivity, even those focussed on
+# agricultural labour, do not take this into account.
+
+# %% [markdown]
+# The 50% of rice production with the highest hazard gradients between GSAT
+# change and labour impact is identified as being exposed to a high
+# hazard-gradient; the proportion of exposed production in each location is
+# shown in the map. We do this to identify regional differences in the
+# estimated labour impact; we are not suggesting this is a limit to adaptation.
+# Areas identified by this method include most of Southeast Asia, and coastal
+# South Asia. Harvests in northern India (e.g., in Punjab) are not strongly
+# affected.
+#
+# There are some small scale variations visible, which are smaller than the
+# resolving scale of the climate model.  These come from variation in the
+# harvest dates identified in RiceAtlas, and might not always be meaningful.
 
 # %%
-# TODO map plot
-# %%
-# TODO histogram type plots
+# Get the hazard gradient and weighting as numpy arrays
+gradient = ds_HASC_monthly.sel(
+    labour_func="labour_sahu", HASC=ra.HASC.values, linregress="slope"
+).fit.values
+weighting = ra[[f"P_S{season}" for season in (1, 2, 3)]].values / 1e6
+
+
+def weighted_quantile(x, w, q):
+    wt = np.sum(w)
+    wc = 0
+    order = np.argsort(x.reshape(-1))
+    assert x.shape == w.shape
+    for point, weight in zip(x.reshape(-1)[order], w.reshape(-1)[order]):
+        wc += weight
+        thisq = wc / wt
+        if thisq >= q:
+            return point
+
+
+# Find the 50th percentile
+threshold = weighted_quantile(gradient, weighting, 0.5)
+print("threshold", threshold)
+
+# Identify harvests where the hazard gradient is above the threshold.
+is_affected = gradient > threshold
+production_affected = (weighting * is_affected).sum(-1)
+
+# Put it back into the RiceAtlas geodataframe.
+ra["production_affected"] = production_affected / weighting.sum(-1) * 100  # to %
+
+# Plot a map.
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+ax.set_extent([60, 148, -12, 55], crs=ccrs.PlateCarree())
+ax.add_feature(cfeature.LAND, facecolor="lightgray")
+ax.add_feature(cfeature.COASTLINE, facecolor="none", edgecolor="black")
+ax.add_feature(cfeature.BORDERS, edgecolor="black")
+
+bins = np.linspace(0, 100.000000001, 11)
+bin_centres = (bins[1:] + bins[:-1]) / 2
+ra["production_affected_quantised"] = bin_centres[
+    np.digitize(ra["production_affected"], bins) - 1
+]
+
+ra.plot(
+    "production_affected_quantised",
+    legend=True,
+    legend_kwds={
+        "label": "Production above 50th percentile of hazard gradient (%)",
+        "orientation": "horizontal",
+        "boundaries": bins,
+    },
+    cmap="Reds",
+    ax=ax,
+)
+plt.show()
+
