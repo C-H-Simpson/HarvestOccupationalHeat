@@ -2,16 +2,16 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py:percent
+#     formats: py:percent,ipynb
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.9.1
+#       jupytext_version: 1.11.1
 #   kernelspec:
-#     display_name: riceheat
+#     display_name: rh202105
 #     language: python
-#     name: riceheat
+#     name: rh202105
 # ---
 
 # %% [markdown]
@@ -38,7 +38,7 @@
 
 # %%
 # Use this cell if the conda environment is not already set up
-# #!. ../env.sh riceheat ../environment.yml >> env_build_log.txt
+# #!. ../env.sh rh202105 ../environment.yml >> env_build_log.txt
 
 # %%
 # Imports
@@ -196,8 +196,35 @@ cat = open_catalog(
     "https://raw.githubusercontent.com/pangeo-data/pangeo-datastore/master/intake-catalogs/master.yaml"
 )
 
-# %%
+
+# %% [markdown]
 # Let's get the climate variables we will need for the wet-bulb temperature (WBT) calculation.
+
+# %%
+CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
+CMIP6_experiments = ["historical", "ssp585"]
+CMIP6_search = {
+    "source_id": "UKESM1-0-LL",
+    "experiment_id": CMIP6_experiments,
+    "variable_id": CMIP6_variables,
+    "table_id": "Amon",  # This could be changed to 'daily'
+    "grid_label": "gn",
+    "member_id": "r1i1p1f2",
+}
+
+cat_return = cat.climate.cmip6_gcs.search(**CMIP6_search)
+
+# I combine by coordinates - this means the SSP will be appended to the historical experiment.
+# This would cause problems if more SSPs were added to this example.
+ds = (
+    xr.combine_by_coords(
+        cat_return.to_dataset_dict(zarr_kwargs={"consolidated": True}).values(),
+        combine_attrs="drop",
+    )
+    .drop("height")
+    .squeeze()
+)
+ds
 
 # %%
 CMIP6_variables = ["tas", "tasmax", "huss", "ps"]
@@ -229,6 +256,7 @@ ds
 # Regardless of whether we are using monthly/daily/3-hourly data for the analysis,
 # we will want monthly surface air temperature for calculating global
 # near-surface air temperature (GSAT).
+
 
 # %%
 CMIP6_search_gsat = CMIP6_search
@@ -307,18 +335,15 @@ gsat_change.plot()
 plt.show()
 
 # %% [markdown]
-# Temperatures are in kelvin by default - I want them in Celsius
+# Temperatures are in kelvin by default - I want them in Celsius. Watch out, running this cell out of order will cause big problems!
 
 # %%
-for var in ds:
-    if "units" not in ds[var].attrs:
-        continue
-    elif ds[var].attrs["units"] == "K":
-        print(f"Changing units of {var} K->degC")
-        attrs = ds[var].attrs
-        attrs["units"] = "degC"
-        ds[var] = ds[var] + absolute_zero
-        ds[var].attrs = attrs
+for var in ["tas", "tasmax"]:
+    print(f"Changing units of {var} K->degC")
+    attrs = ds[var].attrs
+    attrs["units"] = "degC"
+    ds[var] = ds[var] + absolute_zero
+    ds[var].attrs = attrs
 
 # %% [markdown]
 # Because of compression, huss will sometimes have small negative values, which is not valid.
@@ -412,6 +437,7 @@ ds["wbgt_mid"] = (ds["wbgt_max"] + ds["wbgt_mean"]) / 2
 ds.sel(lat=10.0634, lon=105.5943, method="nearest").plot.scatter("tasmax", "wbgt_max")
 plt.show()
 
+
 # %% [markdown]
 # In some places where rice production is prevalent, WBGT gets above 24 C regularly.
 # Note this is model data so probably has a systematic bias.
@@ -446,6 +472,7 @@ plt.show()
 # * Dunne, J. P., Stouffer, R. J. & John, J. G. Reductions in labour capacity from heat stress under climate warming. Nat. Clim. Chang. 3, 563–566 (2013).
 # * Orlov, A., Sillmann, J., Aunan, K., Kjellstrom, T. & Aaheim, A. Economic costs of heat-induced reductions in worker productivity due to global warming. Glob. Environ. Chang. 63, (2020).
 # * Gosling, S. N., Zaherpour, J. & Ibarreta, D. PESETA III: Climate change impacts on labour productivity. (Publications Office of the European Union, 2018). doi:10.2760/07911.
+
 
 # %% [markdown]
 # Other labour impact functions are included in [../src/Labour.py](../src/Labour.py), so you
@@ -577,16 +604,24 @@ def fit_parallel_wrapper(
 # or subdaily data.
 
 # %%
+# Invoke computation of the monthly labour loss.
+# This will be about 122MB in the stock configuration of this notebook.
+ds_labourloss.to_netcdf(
+    "data/ds_labourloss.nc", encoding={"labour": {"dtype": "float32"}}
+)
+
+ds_labourloss = xr.open_dataset("data/ds_labourloss.nc")
+
+# %%
 ds_monthly_trends = ds_labourloss.labour.groupby("time.month").apply(
     lambda x: fit_parallel_wrapper(
         gsat_change, x.groupby("time.year").mean().sel(year=gsat_change.year), "year"
     )
 )
-ds_monthly_trends
 
 
 # %%
-ds_monthly_trends.fit.sel(labour_func="labour_sahu", linregress="slope").max(
+ds_monthly_trends.sel(labour_func="labour_sahu", linregress="slope").max(
     "month"
 ).plot()
 plt.show()
@@ -604,7 +639,6 @@ ds_yearly_trends = (
         )
     )
 )
-ds_yearly_trends
 
 # %% [markdown]
 # ## Using the RiceAtlas data
@@ -675,6 +709,8 @@ da_peak_months = xr.concat(peak_months, dim="HASC")
 # West Bengal is a state in the east of India.
 # We will examine the results of our analysis for just this location in order
 # to better understand the overall trends and meaning of the analyis.
+#
+# For convenience, I will just use a single sub-region of West Bengal, but this won't affect the result much.
 
 # %% [markdown]
 # Firstly, what does the trend in daily maximum WBGT look like in this scenario.
@@ -720,21 +756,21 @@ slope = (
     .where(mask_local)
     .mean(("lat", "lon"))
     .compute()
-    .fit.values
+    .values
 )
 intercept = (
     ds_yearly_trends.sel(linregress="intercept", labour_func="labour_sahu")
     .where(mask_local)
     .mean(("lat", "lon"))
     .compute()
-    .fit.values
+    .values
 )
 R2 = (
     ds_yearly_trends.sel(linregress="rvalue", labour_func="labour_sahu")
     .where(mask_local)
     .min(("lat", "lon"))
     .compute()
-    .fit.values
+    .values
 )
 trendline = gsat_change * slope + intercept
 ax.plot(gsat_change, trendline, color="k")
@@ -746,6 +782,7 @@ plt.text(
     verticalalignment="center",
     transform=ax.transAxes,
 )
+plt.title("West Bengal")
 plt.tight_layout()
 plt.show()
 
@@ -761,7 +798,7 @@ fig, ax = plt.subplots()
 sns.lineplot(
     data=ds_monthly_trends.sel(labour_func="labour_sahu", linregress="slope")
     .where(mask_local)
-    .to_dataframe(),
+    .to_dataframe(name="fit"),
     x="month",
     y="fit",
     color=sns.color_palette()[0],
@@ -782,6 +819,7 @@ prod_local = (
 ax1.plot(range(1, 13), prod_local, c=sns.color_palette()[2], label="Rice harvest")
 ax1.set_ylabel("Rice harvest (million tonnes)")
 fig.legend()
+plt.title("West Bengal")
 plt.show()
 
 
@@ -792,6 +830,8 @@ plt.show()
 # clipped to 0.
 
 # %%
+ds_labourloss["year"] = ds_labourloss.time.dt.year
+ds_labourloss["month"] = ds_labourloss.time.dt.month
 df_labourloss_monthly = (
     ds_labourloss[["labour", "year", "month"]]
     .sel(labour_func="labour_sahu")
@@ -815,6 +855,7 @@ df_labourloss_dec["gsat_change"] = gsat_change.to_dataframe().tas
 sns.scatterplot(data=df_labourloss_jun, x="gsat_change", y="labour", label="June")
 sns.scatterplot(data=df_labourloss_dec, x="gsat_change", y="labour", label="December")
 plt.legend()
+plt.title("West Bengal")
 plt.show()
 
 # %% [markdown]
@@ -871,7 +912,7 @@ def gradient_xr_to_dataframe(_ds):
     """Convert to pandas dataframe. This makes it easier to plot with seaborn."""
     _df = (
         _ds.sel(linregress="slope", labour_func="labour_sahu")
-        .to_dataframe()
+        .to_dataframe(name="fit")
         .reset_index()
     )
     return _df
@@ -923,12 +964,8 @@ plt.legend()
 plt.show()
 
 
-# %% [markdown]
-# This scatterplot shows hazard gradient for each harvest season
-# and location, plotted against latitude.
-
 # %%
-fig1, ax1 = plt.subplots(figsize=(3.5, 3.5))
+fig1, ax1 = plt.subplots(figsize=(5, 5))
 # Scatterplot by latitude
 sns.scatterplot(
     x=df_monthly.lat_,
@@ -1000,10 +1037,11 @@ ax1.legend(handles=legend_elements, loc="lower left", fontsize=8)
 plt.show()
 
 # %% [markdown]
-# This scatterplot shows the hazard gradient against
-# latitude assuming the full year is equally weighted.
+# This (above) scatterplot shows hazard gradient for each harvest season
+# and location, plotted against latitude.
+
 # %%
-fig2, ax2 = plt.subplots(figsize=(3.5, 3.5))
+fig2, ax2 = plt.subplots(figsize=(5,5))
 # Scatterplot by latitude
 sns.scatterplot(
     x=df_yearly.lat_,
@@ -1023,10 +1061,10 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
-# This scatterplot shows the hazard gradient against the peak month of the harvest.
-
+# This (above) scatterplot shows the hazard gradient against
+# latitude assuming the full year is equally weighted.
 # %%
-fig3, ax3 = plt.subplots(figsize=(3.5, 3.5))
+fig3, ax3 = plt.subplots(figsize=(5, 5))
 # Scatterplot by month
 sns.scatterplot(
     x=df_monthly.month,
@@ -1047,6 +1085,10 @@ ax3.set_ylabel("Hazard gradient (%/C)", fontsize=8)
 plt.tight_layout()
 
 plt.show()
+
+
+# %% [markdown]
+# This (above) scatterplot shows the hazard gradient against the peak month of the harvest.
 
 # %% [markdown]
 # Two interacting effects explain most of the spatial variation
@@ -1094,7 +1136,7 @@ plt.show()
 # Get the hazard gradient and weighting as numpy arrays
 gradient = ds_HASC_monthly.sel(
     labour_func="labour_sahu", HASC=ra.HASC.values, linregress="slope"
-).fit.values
+).values
 weighting = ra[[f"P_S{season}" for season in (1, 2, 3)]].values / 1e6
 
 
@@ -1122,7 +1164,7 @@ production_affected = (weighting * is_affected).sum(-1)
 ra["production_affected"] = production_affected / weighting.sum(-1) * 100  # to %
 
 # Plot a map.
-fig = plt.figure(figsize=(7, 7))
+fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
 ax.set_extent([60, 148, -12, 55], crs=ccrs.PlateCarree())
 ax.add_feature(cfeature.LAND, facecolor="lightgray")
