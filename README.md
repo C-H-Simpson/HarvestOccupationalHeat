@@ -28,7 +28,7 @@ productivity and occupational heat-stress.
 ## Getting started
 The notebook has already been evaluated, so have a look [reduced_example](notebooks/reduced_example.ipynb).
 
-You can also run it on [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/C-H-Simpson/HarvestOccupationalHeat/HEAD?filepath=notebooks%2Freduced_example.ipynb) or on your own machine.
+You can also run it on [![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/C-H-Simpson/HarvestOccupationalHeat/HEAD?filepath=notebooks%2Freduced_example.ipynb) or on your own machine.
 
 CMIP6 data is retreived from the Pangeo GCS.
 
