@@ -1,7 +1,7 @@
 # Climate risk to rice labour
 Code demo to go with [Regional disparities and seasonal differences in climate risk to rice labour](https://doi.org/10.31223/X5SW3N).
 
-Release v2.1 of this code has a DOI [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4746392.svg)](https://doi.org/10.5281/zenodo.4746392).
+This code has a DOI [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4746392.svg)](https://doi.org/10.5281/zenodo.4746392).
 
 ## Abstract
 The 880 million agricultural workers of the world are especially vulnerable to
@@ -37,7 +37,6 @@ A script is provided to setup the conda environment from inside the notebook if 
 
 ## Project Organization
 ```
-├── Makefile
 ├── README.md
 ├── environment.yml    <- Conda environment specification.
 ├── env.sh             <- Conda environment setup script.
